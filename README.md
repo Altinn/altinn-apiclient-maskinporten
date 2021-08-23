@@ -1,2 +1,2 @@
-# altinn-apiclients-maskinporten
-.NET API-client for Maskinporten
+# .NET client for Maskinporten APIs
+
