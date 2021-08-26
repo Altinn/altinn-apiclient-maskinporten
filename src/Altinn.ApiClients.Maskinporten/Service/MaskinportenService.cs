@@ -29,7 +29,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
             _maskinportenConfig = maskinportenConfig.Value;
         }
 
-
+     
         public async Task<string> GetToken(X509Certificate2 cert, string clientId, string scope, string resource, int exp)
         {
             return await GetToken(cert, null, clientId, scope, resource, exp);
