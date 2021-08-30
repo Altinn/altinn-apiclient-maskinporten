@@ -22,9 +22,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
 
         public MaskinportenService(HttpClient httpClient, IOptions<MaskinportenSettings> maskinportenConfig)
         {
-            httpClient.BaseAddress = new Uri("https://ver2.maskinporten.no");
             httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-            httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/xml"));
             _client = httpClient;
             _maskinportenConfig = maskinportenConfig.Value;
         }
@@ -51,7 +49,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
 
         private async Task<string> GetToken(X509Certificate2 cert, JsonWebKey jwk, string clientId, string scope, string resource, int exp)
         {
-            string jwtAssertion = GetJwtAssertion(cert, jwk, clientId, scope, resource, exp);
+            string jwtAssertion = GetJwtAssertion(cert, jwk, clientId, scope, resource);
             FormUrlEncodedContent content = GetUrlEncodedContent(jwtAssertion);
             string maskinPortenToken = await PostToken(content);
 
@@ -65,17 +63,25 @@ namespace Altinn.ApiClients.Maskinporten.Services
             return null;
         }
 
-        public string GetJwtAssertion(X509Certificate2 cert, JsonWebKey jwk, string clientId, string scope, string resource, int exp)
+        public string GetJwtAssertion(X509Certificate2 cert, JsonWebKey jwk, string clientId, string scope, string resource)
         {
             DateTimeOffset dateTimeOffset = new DateTimeOffset(DateTime.UtcNow);
-            JwtHeader header = GetHeader(cert, jwk);
+            JwtHeader header;
+            if (cert != null)
+            {
+                header = GetHeader(cert);
+            }
+            else
+            {
+                header = GetHeader(jwk);
+            }
 
             JwtPayload payload = new JwtPayload
             {
-                { "aud", _maskinportenConfig.JwtAssertionAudience },
+                { "aud", GetAssertionAud() },
                 { "scope", scope },
                 { "iss", clientId },
-                { "exp", dateTimeOffset.ToUnixTimeSeconds() + 100 },
+                { "exp", dateTimeOffset.ToUnixTimeSeconds() + 10 },
                 { "iat", dateTimeOffset.ToUnixTimeSeconds() },
                 { "jti", Guid.NewGuid().ToString() },
             };
@@ -91,26 +97,21 @@ namespace Altinn.ApiClients.Maskinporten.Services
             return handler.WriteToken(securityToken);
         }
 
-        private JwtHeader GetHeader(X509Certificate2 cert, JsonWebKey jwk)
+        private JwtHeader GetHeader(JsonWebKey jwk)
         {
-            JwtHeader header = null;
-            if (cert != null)
-            {
-                X509SecurityKey securityKey = new X509SecurityKey(cert);
-                header = new JwtHeader(new SigningCredentials(securityKey, SecurityAlgorithms.RsaSha256))
-                {
-                    { "x5c", new List<string>() { Convert.ToBase64String(cert.GetRawCertData()) } }
-                };
-                header.Remove("typ");
-                header.Remove("kid");
-            }
-            else
-            {
-                header = new JwtHeader(new SigningCredentials(jwk, SecurityAlgorithms.RsaSha256))
-                {
-                };
-            }
+            JwtHeader header = new JwtHeader(new SigningCredentials(jwk, SecurityAlgorithms.RsaSha256));
+            return header;
+        }
 
+        private JwtHeader GetHeader(X509Certificate2 cert)
+        {
+            X509SecurityKey securityKey = new X509SecurityKey(cert);
+            JwtHeader header = new JwtHeader(new SigningCredentials(securityKey, SecurityAlgorithms.RsaSha256))
+            {
+                { "x5c", new List<string>() { Convert.ToBase64String(cert.GetRawCertData()) } }
+            };
+            header.Remove("typ");
+            header.Remove("kid");
             return header;
         }
 
@@ -132,7 +133,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
             HttpRequestMessage requestMessage = new HttpRequestMessage()
             {
                 Method = HttpMethod.Post,
-                RequestUri = new Uri(_maskinportenConfig.TokenEndpoint ),
+                RequestUri = new Uri(GetTokenEndpoint()),
                 Content = bearer
             };
 
@@ -149,6 +150,42 @@ namespace Altinn.ApiClients.Maskinporten.Services
             }
 
             return null;
+        }
+
+        private string GetAssertionAud()
+        {
+            if (_maskinportenConfig.Environment.Equals("prod"))
+            {
+                return _maskinportenConfig.JwtAssertionAudienceProd;
+            }
+            else if (_maskinportenConfig.Environment.Equals("ver1"))
+            {
+                return _maskinportenConfig.JwtAssertionAudienceVer1;
+            }
+            else if (_maskinportenConfig.Environment.Equals("ver2"))
+            {
+                return _maskinportenConfig.JwtAssertionAudienceVer2;
+            }
+
+            return null;
+        }
+
+        private string GetTokenEndpoint()
+        {
+           if(_maskinportenConfig.Environment.Equals("prod"))
+            {
+                return _maskinportenConfig.TokenEndpointProd;
+            }
+            else if (_maskinportenConfig.Environment.Equals("ver1"))
+            {
+                return _maskinportenConfig.TokenEndpointVer1;
+            }
+            else if (_maskinportenConfig.Environment.Equals("ver2"))
+            {
+                return _maskinportenConfig.TokenEndpointVer2;
+            }
+
+           return null;
         }
 
     }
