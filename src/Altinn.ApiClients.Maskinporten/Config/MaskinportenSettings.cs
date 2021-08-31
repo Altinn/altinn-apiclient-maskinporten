@@ -19,6 +19,16 @@ namespace Altinn.ApiClients.Maskinporten.Config
         public string Scope { get; set; }
 
         /// <summary>
+        /// Resource if fixed
+        /// </summary>
+        public string Resource { get; set; }
+
+        /// <summary>
+        /// Base64 Encoded Json Web Key including
+        /// </summary>
+        public string EncodedJwk { get; set; }
+
+        /// <summary>
         /// The Maskinporten environment. Valid values are ver1, ver2 or prod
         /// </summary>
         public string Environment { get; set; }

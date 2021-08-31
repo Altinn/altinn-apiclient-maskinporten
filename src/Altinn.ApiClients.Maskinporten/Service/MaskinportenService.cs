@@ -59,6 +59,14 @@ namespace Altinn.ApiClients.Maskinporten.Services
         }
 
 
+        public async Task<TokenResponse> GetToken()
+        {
+            byte[] base64EncodedBytes = Convert.FromBase64String(_maskinportenConfig.EncodedJwk);
+            string jwkjson = Encoding.UTF8.GetString(base64EncodedBytes);
+            JsonWebKey jwk = new JsonWebKey(jwkjson);
+            return await GetToken(null, jwk, _maskinportenConfig.ClientId, _maskinportenConfig.Scope, _maskinportenConfig.Resource);
+        }
+
         private async Task<TokenResponse> GetToken(X509Certificate2 cert, JsonWebKey jwk, string clientId, string scope, string resource)
         {
             string cacheKey = $"{clientId}-{scope}";

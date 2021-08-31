@@ -21,5 +21,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
         /// Generates a Maskinporten access token using a base64encoded JsonWebKey
         /// </summary>
         Task<TokenResponse> GetToken(string base64EncodedJWK, string clientId, string scope, string resource, bool disableCaching = false);
+
+        Task<TokenResponse> GetToken();
     }
 }
