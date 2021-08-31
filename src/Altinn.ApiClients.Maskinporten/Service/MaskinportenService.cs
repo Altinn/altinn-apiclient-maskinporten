@@ -1,4 +1,5 @@
 ﻿using Altinn.ApiClients.Maskinporten.Config;
+using Altinn.ApiClients.Maskinporten.Models;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Newtonsoft.Json;
@@ -28,39 +29,30 @@ namespace Altinn.ApiClients.Maskinporten.Services
         }
 
      
-        public async Task<string> GetToken(X509Certificate2 cert, string clientId, string scope, string resource, int exp)
+        public async Task<TokenResponse> GetToken(X509Certificate2 cert, string clientId, string scope, string resource)
         {
-            return await GetToken(cert, null, clientId, scope, resource, exp);
+            return await GetToken(cert, null, clientId, scope, resource);
         }
 
-        public async Task<string> GetToken(JsonWebKey jwk, string clientId, string scope, string resource, int exp)
+        public async Task<TokenResponse> GetToken(JsonWebKey jwk, string clientId, string scope, string resource)
         {
-            return await GetToken(null, jwk, clientId, scope, resource, exp);
+            return await GetToken(null, jwk, clientId, scope, resource);
         }
 
-        public async Task<string> GetToken(string base64EncodedJwk, string clientId, string scope, string resource, int exp)
+        public async Task<TokenResponse> GetToken(string base64EncodedJwk, string clientId, string scope, string resource)
         {
             byte[] base64EncodedBytes = Convert.FromBase64String(base64EncodedJwk);
             string jwkjson = Encoding.UTF8.GetString(base64EncodedBytes);
             JsonWebKey jwk = new JsonWebKey(jwkjson);
-            return await GetToken(null, jwk, clientId, scope, resource, exp);
+            return await GetToken(null, jwk, clientId, scope, resource);
         }
 
 
-        private async Task<string> GetToken(X509Certificate2 cert, JsonWebKey jwk, string clientId, string scope, string resource, int exp)
+        private async Task<TokenResponse> GetToken(X509Certificate2 cert, JsonWebKey jwk, string clientId, string scope, string resource)
         {
             string jwtAssertion = GetJwtAssertion(cert, jwk, clientId, scope, resource);
             FormUrlEncodedContent content = GetUrlEncodedContent(jwtAssertion);
-            string maskinPortenToken = await PostToken(content);
-
-            if (!string.IsNullOrEmpty(maskinPortenToken))
-            {
-                var accessTokenObject = JsonConvert.DeserializeObject<JObject>(maskinPortenToken);
-                string accessToken = accessTokenObject.GetValue("access_token").ToString();
-                return accessToken;
-            }
-
-            return null;
+            return await PostToken(content);
         }
 
         public string GetJwtAssertion(X509Certificate2 cert, JsonWebKey jwk, string clientId, string scope, string resource)
@@ -126,9 +118,9 @@ namespace Altinn.ApiClients.Maskinporten.Services
             return formContent;
         }
 
-        public async Task<string> PostToken(FormUrlEncodedContent bearer)
+        public async Task<TokenResponse> PostToken(FormUrlEncodedContent bearer)
         {
-            string token = string.Empty;
+            TokenResponse token = null; ;
 
             HttpRequestMessage requestMessage = new HttpRequestMessage()
             {
@@ -141,7 +133,8 @@ namespace Altinn.ApiClients.Maskinporten.Services
 
             if (response.IsSuccessStatusCode)
             {
-                token = await response.Content.ReadAsStringAsync();
+                string content = await response.Content.ReadAsStringAsync();
+                token = System.Text.Json.JsonSerializer.Deserialize<TokenResponse>(content);
                 return token;
             }
             else
