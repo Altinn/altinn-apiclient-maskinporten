@@ -1,5 +1,7 @@
 ﻿using Altinn.ApiClients.Maskinporten.Config;
 using Altinn.ApiClients.Maskinporten.Models;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Newtonsoft.Json;
@@ -21,25 +23,34 @@ namespace Altinn.ApiClients.Maskinporten.Services
 
         private readonly MaskinportenSettings _maskinportenConfig;
 
-        public MaskinportenService(HttpClient httpClient, IOptions<MaskinportenSettings> maskinportenConfig)
+        private readonly ILogger _logger;
+
+        private readonly IMemoryCache _memoryCache;
+
+        public MaskinportenService(HttpClient httpClient, 
+            IOptions<MaskinportenSettings> maskinportenConfig, 
+            ILogger<MaskinportenService> logger,
+            IMemoryCache memoryCache)
         {
             httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             _client = httpClient;
             _maskinportenConfig = maskinportenConfig.Value;
+            _logger = logger;
+            _memoryCache = memoryCache;
         }
 
      
-        public async Task<TokenResponse> GetToken(X509Certificate2 cert, string clientId, string scope, string resource)
+        public async Task<TokenResponse> GetToken(X509Certificate2 cert, string clientId, string scope, string resource, bool disableCaching = false)
         {
             return await GetToken(cert, null, clientId, scope, resource);
         }
 
-        public async Task<TokenResponse> GetToken(JsonWebKey jwk, string clientId, string scope, string resource)
+        public async Task<TokenResponse> GetToken(JsonWebKey jwk, string clientId, string scope, string resource, bool disableCaching = false)
         {
             return await GetToken(null, jwk, clientId, scope, resource);
         }
 
-        public async Task<TokenResponse> GetToken(string base64EncodedJwk, string clientId, string scope, string resource)
+        public async Task<TokenResponse> GetToken(string base64EncodedJwk, string clientId, string scope, string resource, bool disableCaching = false)
         {
             byte[] base64EncodedBytes = Convert.FromBase64String(base64EncodedJwk);
             string jwkjson = Encoding.UTF8.GetString(base64EncodedBytes);
@@ -50,9 +61,23 @@ namespace Altinn.ApiClients.Maskinporten.Services
 
         private async Task<TokenResponse> GetToken(X509Certificate2 cert, JsonWebKey jwk, string clientId, string scope, string resource)
         {
-            string jwtAssertion = GetJwtAssertion(cert, jwk, clientId, scope, resource);
-            FormUrlEncodedContent content = GetUrlEncodedContent(jwtAssertion);
-            return await PostToken(content);
+            string cacheKey = $"{clientId}-{scope}";
+            TokenResponse accesstokenResponse;
+            if (!_memoryCache.TryGetValue(cacheKey, out accesstokenResponse))
+            {
+                string jwtAssertion = GetJwtAssertion(cert, jwk, clientId, scope, resource);
+                FormUrlEncodedContent content = GetUrlEncodedContent(jwtAssertion);
+                accesstokenResponse = await PostToken(content);
+
+                MemoryCacheEntryOptions cacheEntryOptions = new MemoryCacheEntryOptions()
+                {
+                    Priority = CacheItemPriority.High,
+                };
+                cacheEntryOptions.SetAbsoluteExpiration(new TimeSpan(0, 0, accesstokenResponse.ExpiresIn - 30));
+                _memoryCache.Set(cacheKey, accesstokenResponse, cacheEntryOptions);
+            }
+
+            return accesstokenResponse;
         }
 
         public string GetJwtAssertion(X509Certificate2 cert, JsonWebKey jwk, string clientId, string scope, string resource)
