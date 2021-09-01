@@ -1,4 +1,5 @@
 ﻿using Altinn.ApiClients.Maskinporten.Config;
+using Altinn.ApiClients.Maskinporten.Models;
 using Altinn.ApiClients.Maskinporten.Services;
 using Microsoft.Extensions.Options;
 using System.Net;
@@ -7,7 +8,7 @@ using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Altinn.ApiClients.Maskinporten.Models
+namespace Altinn.ApiClients.Maskinporten.Handlers
 {
     public class MaskinportenTokenHandler : DelegatingHandler
     {
@@ -18,6 +19,8 @@ namespace Altinn.ApiClients.Maskinporten.Models
 
         public MaskinportenTokenHandler(IOptions<MaskinportenSettings> maskinportenSettings, IMaskinporten maskinporten)
         {
+            _maskinportenSettings = maskinportenSettings.Value;
+            _maskinporten = maskinporten;
         }
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
@@ -46,32 +49,16 @@ namespace Altinn.ApiClients.Maskinporten.Models
 
         private async Task<TokenResponse> GetTokenResponse(CancellationToken cancellationToken)
         {
-            try
-            {
-                _semaphore.Wait(cancellationToken);
-                if (cancellationToken.IsCancellationRequested) return null;
-                TokenResponse tokenResponse =  await _maskinporten.GetToken();
-                return tokenResponse;
-            }
-            finally
-            {
-                _semaphore.Release();
-            }
+            if (cancellationToken.IsCancellationRequested) return null;
+            TokenResponse tokenResponse =  await _maskinporten.GetToken();
+            return tokenResponse;
         }
 
         private async Task<TokenResponse> RefreshTokenResponse(CancellationToken cancellationToken)
         {
-            try
-            {
-                _semaphore.Wait(cancellationToken);
                 if (cancellationToken.IsCancellationRequested) return null;
-                _tokenResponse = await _maskinporten.GetToken();
-                return _tokenResponse;
-            }
-            finally
-            {
-                _semaphore.Release();
-            }
+                 TokenResponse tokenResponse = await _maskinporten.GetToken(true);
+                return tokenResponse;
         }
     }
 }

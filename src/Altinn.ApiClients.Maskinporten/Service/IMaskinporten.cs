@@ -22,6 +22,9 @@ namespace Altinn.ApiClients.Maskinporten.Services
         /// </summary>
         Task<TokenResponse> GetToken(string base64EncodedJWK, string clientId, string scope, string resource, bool disableCaching = false);
 
-        Task<TokenResponse> GetToken();
+        /// <summary>
+        /// Generates a access token based on configured values. Will take client secret from SecretService
+        /// </summary>
+        Task<TokenResponse> GetToken(bool disableCaching = false);
     }
 }

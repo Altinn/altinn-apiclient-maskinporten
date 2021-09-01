@@ -1,5 +1,6 @@
 ﻿using Altinn.ApiClients.Maskinporten.Config;
 using Altinn.ApiClients.Maskinporten.Models;
+using Altinn.ApiClients.Maskinporten.Service;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -25,29 +26,33 @@ namespace Altinn.ApiClients.Maskinporten.Services
 
         private readonly ILogger _logger;
 
+        private readonly IClientSecret _clientSecret;
+
         private readonly IMemoryCache _memoryCache;
 
         public MaskinportenService(HttpClient httpClient, 
             IOptions<MaskinportenSettings> maskinportenConfig, 
             ILogger<MaskinportenService> logger,
-            IMemoryCache memoryCache)
+            IMemoryCache memoryCache,
+            IClientSecret clientSecret)
         {
             httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             _client = httpClient;
             _maskinportenConfig = maskinportenConfig.Value;
             _logger = logger;
             _memoryCache = memoryCache;
+            _clientSecret = clientSecret;
         }
 
      
         public async Task<TokenResponse> GetToken(X509Certificate2 cert, string clientId, string scope, string resource, bool disableCaching = false)
         {
-            return await GetToken(cert, null, clientId, scope, resource);
+            return await GetToken(cert, null, clientId, scope, resource, disableCaching);
         }
 
         public async Task<TokenResponse> GetToken(JsonWebKey jwk, string clientId, string scope, string resource, bool disableCaching = false)
         {
-            return await GetToken(null, jwk, clientId, scope, resource);
+            return await GetToken(null, jwk, clientId, scope, resource, disableCaching);
         }
 
         public async Task<TokenResponse> GetToken(string base64EncodedJwk, string clientId, string scope, string resource, bool disableCaching = false)
@@ -55,23 +60,27 @@ namespace Altinn.ApiClients.Maskinporten.Services
             byte[] base64EncodedBytes = Convert.FromBase64String(base64EncodedJwk);
             string jwkjson = Encoding.UTF8.GetString(base64EncodedBytes);
             JsonWebKey jwk = new JsonWebKey(jwkjson);
-            return await GetToken(null, jwk, clientId, scope, resource);
+            return await GetToken(null, jwk, clientId, scope, resource, disableCaching);
         }
 
-
-        public async Task<TokenResponse> GetToken()
+        public async Task<TokenResponse> GetToken(bool disableCaching = false)
         {
-            byte[] base64EncodedBytes = Convert.FromBase64String(_maskinportenConfig.EncodedJwk);
-            string jwkjson = Encoding.UTF8.GetString(base64EncodedBytes);
-            JsonWebKey jwk = new JsonWebKey(jwkjson);
-            return await GetToken(null, jwk, _maskinportenConfig.ClientId, _maskinportenConfig.Scope, _maskinportenConfig.Resource);
+            ClientSecrets clientSecrets = await _clientSecret.GetClientSecrets();
+            if (clientSecrets.ClientKey != null)
+            {
+                return await GetToken(null, clientSecrets.ClientKey, _maskinportenConfig.ClientId, _maskinportenConfig.Scope, _maskinportenConfig.Resource, disableCaching);
+            }
+            else
+            {
+                return await GetToken(clientSecrets.ClientCertificate, null , _maskinportenConfig.ClientId, _maskinportenConfig.Scope, _maskinportenConfig.Resource, disableCaching);
+            }
         }
 
-        private async Task<TokenResponse> GetToken(X509Certificate2 cert, JsonWebKey jwk, string clientId, string scope, string resource)
+        private async Task<TokenResponse> GetToken(X509Certificate2 cert, JsonWebKey jwk, string clientId, string scope, string resource, bool disableCaching)
         {
             string cacheKey = $"{clientId}-{scope}";
             TokenResponse accesstokenResponse;
-            if (!_memoryCache.TryGetValue(cacheKey, out accesstokenResponse))
+            if (disableCaching || !_memoryCache.TryGetValue(cacheKey, out accesstokenResponse))
             {
                 string jwtAssertion = GetJwtAssertion(cert, jwk, clientId, scope, resource);
                 FormUrlEncodedContent content = GetUrlEncodedContent(jwtAssertion);
