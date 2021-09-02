@@ -182,6 +182,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
             else
             {
                 string error = await response.Content.ReadAsStringAsync();
+                _logger.LogError(response.StatusCode + " " + error);
             }
 
             return null;
