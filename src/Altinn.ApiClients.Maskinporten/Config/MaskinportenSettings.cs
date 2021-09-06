@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Altinn.ApiClients.Maskinporten.Service;
 
 namespace Altinn.ApiClients.Maskinporten.Config
 {
+    public class MaskinportenSettings<T> : MaskinportenSettings where T : ICustomClientSecret {}
     public class MaskinportenSettings
     {
         /// <summary>

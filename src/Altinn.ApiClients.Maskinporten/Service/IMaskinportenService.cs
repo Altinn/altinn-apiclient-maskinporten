@@ -2,10 +2,14 @@
 using Microsoft.IdentityModel.Tokens;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
+using Altinn.ApiClients.Maskinporten.Service;
 
 namespace Altinn.ApiClients.Maskinporten.Services
 {
-    public interface IMaskinporten
+
+    public interface IMaskinportenService<T> : IMaskinportenService where T : ICustomClientSecret { }
+
+    public interface IMaskinportenService
     {
         /// <summary>
         /// Generates a Maskinporten access token using a JsonWebKey

@@ -7,10 +7,8 @@ using System.Threading.Tasks;
 
 namespace Altinn.ApiClients.Maskinporten.Service
 {
-    public interface IClientSecret
+    public interface ICustomClientSecret : IClientSecret
     {
-        Task<ClientSecrets> GetClientSecrets();
-    }
 
-    public interface IClientSecret<T> : IClientSecret where T : ICustomClientSecret {}
+    }
 }

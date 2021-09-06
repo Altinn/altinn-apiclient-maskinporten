@@ -7,17 +7,26 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
+using Altinn.ApiClients.Maskinporten.Service;
 
 namespace Altinn.ApiClients.Maskinporten.Handlers
 {
-    public class MaskinportenTokenHandler : DelegatingHandler
+    public class MaskinportenTokenHandler<T> : MaskinportenTokenHandler, IMaskinportenTokenHandler<T> where T : ICustomClientSecret
     {
-        private IMaskinporten _maskinporten;
+        public MaskinportenTokenHandler(
+            IOptions<MaskinportenSettings<T>> maskinportenSettings, 
+            IMaskinportenService<T> maskinporten) : base(maskinportenSettings, maskinporten)
+        {
+        }
+    }
+    public class MaskinportenTokenHandler : DelegatingHandler, IMaskinportenTokenHandler
+    {
+        private IMaskinportenService _maskinporten;
         private MaskinportenSettings _maskinportenSettings;
         private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
         private TokenResponse _tokenResponse;
 
-        public MaskinportenTokenHandler(IOptions<MaskinportenSettings> maskinportenSettings, IMaskinporten maskinporten)
+        public MaskinportenTokenHandler(IOptions<MaskinportenSettings> maskinportenSettings, IMaskinportenService maskinporten)
         {
             _maskinportenSettings = maskinportenSettings.Value;
             _maskinporten = maskinporten;

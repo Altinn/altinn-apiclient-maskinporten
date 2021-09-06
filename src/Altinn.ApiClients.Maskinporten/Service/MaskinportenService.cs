@@ -18,7 +18,19 @@ using System.Threading.Tasks;
 
 namespace Altinn.ApiClients.Maskinporten.Services
 {
-    public class MaskinportenService: IMaskinporten
+
+    public class MaskinportenService<T> : MaskinportenService, IMaskinportenService<T> where T : ICustomClientSecret
+    {
+        public MaskinportenService(HttpClient httpClient, 
+            IOptions<MaskinportenSettings<T>> maskinportenConfig, 
+            ILogger<IMaskinportenService<T>> logger, 
+            IMemoryCache memoryCache, 
+            IClientSecret<T> clientSecret) : base(httpClient, maskinportenConfig, logger, memoryCache, clientSecret)
+        {
+        }
+    }
+
+    public class MaskinportenService: IMaskinportenService
     {
         private readonly HttpClient _client;
 
@@ -32,7 +44,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
 
         public MaskinportenService(HttpClient httpClient, 
             IOptions<MaskinportenSettings> maskinportenConfig, 
-            ILogger<MaskinportenService> logger,
+            ILogger<IMaskinportenService> logger,
             IMemoryCache memoryCache,
             IClientSecret clientSecret)
         {
@@ -44,7 +56,6 @@ namespace Altinn.ApiClients.Maskinporten.Services
             _clientSecret = clientSecret;
         }
 
-     
         public async Task<TokenResponse> GetToken(X509Certificate2 cert, string clientId, string scope, string resource, bool disableCaching = false)
         {
             return await GetToken(cert, null, clientId, scope, resource, disableCaching);
