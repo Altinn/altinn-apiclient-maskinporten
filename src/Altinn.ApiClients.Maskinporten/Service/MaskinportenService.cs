@@ -14,6 +14,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Altinn.ApiClients.Maskinporten.Services
@@ -42,6 +43,8 @@ namespace Altinn.ApiClients.Maskinporten.Services
 
         private readonly IMemoryCache _memoryCache;
 
+        static SemaphoreSlim semaphoreSlim = new SemaphoreSlim(1, 1);
+
         public MaskinportenService(HttpClient httpClient, 
             IOptions<MaskinportenSettings> maskinportenConfig, 
             ILogger<IMaskinportenService> logger,
@@ -56,6 +59,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
             _clientSecret = clientSecret;
         }
 
+     
         public async Task<TokenResponse> GetToken(X509Certificate2 cert, string clientId, string scope, string resource, bool disableCaching = false)
         {
             return await GetToken(cert, null, clientId, scope, resource, disableCaching);
@@ -89,20 +93,29 @@ namespace Altinn.ApiClients.Maskinporten.Services
 
         private async Task<TokenResponse> GetToken(X509Certificate2 cert, JsonWebKey jwk, string clientId, string scope, string resource, bool disableCaching)
         {
-            string cacheKey = $"{clientId}-{scope}";
+            string cacheKey = $"{clientId}-{scope}-{resource}";
             TokenResponse accesstokenResponse;
-            if (disableCaching || !_memoryCache.TryGetValue(cacheKey, out accesstokenResponse))
-            {
-                string jwtAssertion = GetJwtAssertion(cert, jwk, clientId, scope, resource);
-                FormUrlEncodedContent content = GetUrlEncodedContent(jwtAssertion);
-                accesstokenResponse = await PostToken(content);
 
-                MemoryCacheEntryOptions cacheEntryOptions = new MemoryCacheEntryOptions()
+            await semaphoreSlim.WaitAsync();
+            try
+            {
+                if (disableCaching || !_memoryCache.TryGetValue(cacheKey, out accesstokenResponse))
                 {
-                    Priority = CacheItemPriority.High,
-                };
-                cacheEntryOptions.SetAbsoluteExpiration(new TimeSpan(0, 0, accesstokenResponse.ExpiresIn - 30));
-                _memoryCache.Set(cacheKey, accesstokenResponse, cacheEntryOptions);
+                    string jwtAssertion = GetJwtAssertion(cert, jwk, clientId, scope, resource);
+                    FormUrlEncodedContent content = GetUrlEncodedContent(jwtAssertion);
+                    accesstokenResponse = await PostToken(content);
+
+                    MemoryCacheEntryOptions cacheEntryOptions = new MemoryCacheEntryOptions()
+                    {
+                        Priority = CacheItemPriority.High,
+                    };
+                    cacheEntryOptions.SetAbsoluteExpiration(new TimeSpan(0, 0, Math.Max(0, accesstokenResponse.ExpiresIn - 30)));
+                    _memoryCache.Set(cacheKey, accesstokenResponse, cacheEntryOptions);
+                }
+            }
+            finally
+            {
+                semaphoreSlim.Release();
             }
 
             return accesstokenResponse;
@@ -201,17 +214,14 @@ namespace Altinn.ApiClients.Maskinporten.Services
 
         private string GetAssertionAud()
         {
-            if (_maskinportenConfig.Environment.Equals("prod"))
+            switch (_maskinportenConfig.Environment)
             {
-                return _maskinportenConfig.JwtAssertionAudienceProd;
-            }
-            else if (_maskinportenConfig.Environment.Equals("ver1"))
-            {
-                return _maskinportenConfig.JwtAssertionAudienceVer1;
-            }
-            else if (_maskinportenConfig.Environment.Equals("ver2"))
-            {
-                return _maskinportenConfig.JwtAssertionAudienceVer2;
+                case "prod":
+                    return _maskinportenConfig.JwtAssertionAudienceProd;
+                case "ver1":
+                    return _maskinportenConfig.JwtAssertionAudienceVer1;
+                case "ver2":
+                    return _maskinportenConfig.JwtAssertionAudienceVer2;
             }
 
             return null;
@@ -219,17 +229,14 @@ namespace Altinn.ApiClients.Maskinporten.Services
 
         private string GetTokenEndpoint()
         {
-           if(_maskinportenConfig.Environment.Equals("prod"))
+            switch (_maskinportenConfig.Environment)
             {
-                return _maskinportenConfig.TokenEndpointProd;
-            }
-            else if (_maskinportenConfig.Environment.Equals("ver1"))
-            {
-                return _maskinportenConfig.TokenEndpointVer1;
-            }
-            else if (_maskinportenConfig.Environment.Equals("ver2"))
-            {
-                return _maskinportenConfig.TokenEndpointVer2;
+                case "prod":
+                    return _maskinportenConfig.TokenEndpointProd;
+                case "ver1":
+                    return _maskinportenConfig.TokenEndpointVer1;
+                case "ver2":
+                    return _maskinportenConfig.TokenEndpointVer2;
             }
 
            return null;

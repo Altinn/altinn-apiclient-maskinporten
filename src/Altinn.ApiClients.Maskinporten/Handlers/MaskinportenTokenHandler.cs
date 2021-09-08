@@ -21,12 +21,9 @@ namespace Altinn.ApiClients.Maskinporten.Handlers
     }
     public class MaskinportenTokenHandler : DelegatingHandler, IMaskinportenTokenHandler
     {
-        private IMaskinportenService _maskinporten;
-        private MaskinportenSettings _maskinportenSettings;
-        private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
-        private TokenResponse _tokenResponse;
+        private IMaskinporten _maskinporten;
 
-        public MaskinportenTokenHandler(IOptions<MaskinportenSettings> maskinportenSettings, IMaskinportenService maskinporten)
+        public MaskinportenTokenHandler(IMaskinporten maskinporten)
         {
             _maskinportenSettings = maskinportenSettings.Value;
             _maskinporten = maskinporten;
