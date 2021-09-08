@@ -14,6 +14,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Altinn.ApiClients.Maskinporten.Services
@@ -29,6 +30,8 @@ namespace Altinn.ApiClients.Maskinporten.Services
         private readonly IClientSecret _clientSecret;
 
         private readonly IMemoryCache _memoryCache;
+
+        static SemaphoreSlim semaphoreSlim = new SemaphoreSlim(1, 1);
 
         public MaskinportenService(HttpClient httpClient, 
             IOptions<MaskinportenSettings> maskinportenConfig, 
@@ -80,18 +83,27 @@ namespace Altinn.ApiClients.Maskinporten.Services
         {
             string cacheKey = $"{clientId}-{scope}-{resource}";
             TokenResponse accesstokenResponse;
-            if (disableCaching || !_memoryCache.TryGetValue(cacheKey, out accesstokenResponse))
-            {
-                string jwtAssertion = GetJwtAssertion(cert, jwk, clientId, scope, resource);
-                FormUrlEncodedContent content = GetUrlEncodedContent(jwtAssertion);
-                accesstokenResponse = await PostToken(content);
 
-                MemoryCacheEntryOptions cacheEntryOptions = new MemoryCacheEntryOptions()
+            await semaphoreSlim.WaitAsync();
+            try
+            {
+                if (disableCaching || !_memoryCache.TryGetValue(cacheKey, out accesstokenResponse))
                 {
-                    Priority = CacheItemPriority.High,
-                };
-                cacheEntryOptions.SetAbsoluteExpiration(new TimeSpan(0, 0, Math.Max(0, accesstokenResponse.ExpiresIn - 30)));
-                _memoryCache.Set(cacheKey, accesstokenResponse, cacheEntryOptions);
+                    string jwtAssertion = GetJwtAssertion(cert, jwk, clientId, scope, resource);
+                    FormUrlEncodedContent content = GetUrlEncodedContent(jwtAssertion);
+                    accesstokenResponse = await PostToken(content);
+
+                    MemoryCacheEntryOptions cacheEntryOptions = new MemoryCacheEntryOptions()
+                    {
+                        Priority = CacheItemPriority.High,
+                    };
+                    cacheEntryOptions.SetAbsoluteExpiration(new TimeSpan(0, 0, Math.Max(0, accesstokenResponse.ExpiresIn - 30)));
+                    _memoryCache.Set(cacheKey, accesstokenResponse, cacheEntryOptions);
+                }
+            }
+            finally
+            {
+                semaphoreSlim.Release();
             }
 
             return accesstokenResponse;
