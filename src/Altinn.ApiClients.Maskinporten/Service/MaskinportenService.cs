@@ -78,7 +78,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
 
         private async Task<TokenResponse> GetToken(X509Certificate2 cert, JsonWebKey jwk, string clientId, string scope, string resource, bool disableCaching)
         {
-            string cacheKey = $"{clientId}-{scope}";
+            string cacheKey = $"{clientId}-{scope}-{resource}";
             TokenResponse accesstokenResponse;
             if (disableCaching || !_memoryCache.TryGetValue(cacheKey, out accesstokenResponse))
             {
@@ -90,7 +90,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
                 {
                     Priority = CacheItemPriority.High,
                 };
-                cacheEntryOptions.SetAbsoluteExpiration(new TimeSpan(0, 0, accesstokenResponse.ExpiresIn - 30));
+                cacheEntryOptions.SetAbsoluteExpiration(new TimeSpan(0, 0, Math.Max(0, accesstokenResponse.ExpiresIn - 30)));
                 _memoryCache.Set(cacheKey, accesstokenResponse, cacheEntryOptions);
             }
 
@@ -190,17 +190,14 @@ namespace Altinn.ApiClients.Maskinporten.Services
 
         private string GetAssertionAud()
         {
-            if (_maskinportenConfig.Environment.Equals("prod"))
+            switch (_maskinportenConfig.Environment)
             {
-                return _maskinportenConfig.JwtAssertionAudienceProd;
-            }
-            else if (_maskinportenConfig.Environment.Equals("ver1"))
-            {
-                return _maskinportenConfig.JwtAssertionAudienceVer1;
-            }
-            else if (_maskinportenConfig.Environment.Equals("ver2"))
-            {
-                return _maskinportenConfig.JwtAssertionAudienceVer2;
+                case "prod":
+                    return _maskinportenConfig.JwtAssertionAudienceProd;
+                case "ver1":
+                    return _maskinportenConfig.JwtAssertionAudienceVer1;
+                case "ver2":
+                    return _maskinportenConfig.JwtAssertionAudienceVer2;
             }
 
             return null;
@@ -208,17 +205,14 @@ namespace Altinn.ApiClients.Maskinporten.Services
 
         private string GetTokenEndpoint()
         {
-           if(_maskinportenConfig.Environment.Equals("prod"))
+            switch (_maskinportenConfig.Environment)
             {
-                return _maskinportenConfig.TokenEndpointProd;
-            }
-            else if (_maskinportenConfig.Environment.Equals("ver1"))
-            {
-                return _maskinportenConfig.TokenEndpointVer1;
-            }
-            else if (_maskinportenConfig.Environment.Equals("ver2"))
-            {
-                return _maskinportenConfig.TokenEndpointVer2;
+                case "prod":
+                    return _maskinportenConfig.TokenEndpointProd;
+                case "ver1":
+                    return _maskinportenConfig.TokenEndpointVer1;
+                case "ver2":
+                    return _maskinportenConfig.TokenEndpointVer2;
             }
 
            return null;
