@@ -1,21 +1,13 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.HttpsPolicy;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Altinn.ApiClients.Maskinporten.Config;
 using Altinn.ApiClients.Maskinporten.Handlers;
-using Altinn.ApiClients.Maskinporten.Service;
+using Altinn.ApiClients.Maskinporten.Interfaces;
 using Altinn.ApiClients.Maskinporten.Services;
 using Microsoft.Extensions.Caching.Memory;
-using SampleWebApp.Service;
 
 namespace SampleWebApp
 {
@@ -33,22 +25,59 @@ namespace SampleWebApp
         {
             services.AddControllers();
 
+            // Maskinporten requires a memory cache implementation
             services.AddSingleton<IMemoryCache, MemoryCache>();
-            services.AddHttpClient();
 
-            // Add a configuration client
-            services.Configure<MaskinportenSettings>(Configuration.GetSection("MaskinportenSettings"));
-            services.AddSingleton<IClientSecret, ClientSecretService>();
-            services.AddSingleton<IMaskinportenService, MaskinportenService>();
-            services.AddSingleton<MaskinportenTokenHandler>();
-            services.AddHttpClient("foo").AddHttpMessageHandler<MaskinportenTokenHandler>();
+            // We also need at least one HTTP client in order to fetch tokens
+            services.AddHttpClient();
             
-            // Add a separate client with custom config and secret
-            services.Configure<MaskinportenSettings<IMyCustomClientSecretService>>(Configuration.GetSection("MyCustomMaskinportenSettings"));
-            services.AddSingleton<IClientSecret<IMyCustomClientSecretService>, MyCustomClientSecretService>();
-            services.AddSingleton<IMaskinportenService<IMyCustomClientSecretService>, MaskinportenService<IMyCustomClientSecretService>>();
-            services.AddSingleton<MaskinportenTokenHandler<IMyCustomClientSecretService>>();
-            services.AddHttpClient("bar").AddHttpMessageHandler<MaskinportenTokenHandler<IMyCustomClientSecretService>>();
+            // We only need a single Maskinporten-service. This can be used directly if low level access is required.
+            services.AddSingleton<IMaskinportenService, MaskinportenService>();
+
+            // Add some configurations that will be injected for the respective client definitions
+            services.Configure<MaskinportenSettings<SettingsJwkClientDefinition>>(Configuration.GetSection("MaskinportenSettingsForJwkSettings"));
+            services.Configure<MaskinportenSettings<Pkcs12ClientDefinition>>(Configuration.GetSection("MyMaskinportenSettingsForCertFile"));
+            services.Configure<MaskinportenSettings<CertificateStoreClientDefinition>>(Configuration.GetSection("MyMaskinportenSettingsForThumbprint"));
+            // Add some custom configuration which will be injected for the supplied definition
+            services.Configure<MaskinportenSettings<Pkcs12ClientDefinition<IMyCustomMaskinportenSettings>>>(Configuration.GetSection("MyCustomMaskinportenSettingsForCertFile"));
+
+            // Add some client definitions
+            services.AddSingleton<SettingsJwkClientDefinition>();   
+            services.AddSingleton<Pkcs12ClientDefinition>();
+            services.AddSingleton<CertificateStoreClientDefinition>();
+            
+            // Add a custom client definition for using a custom configuration which will be injected
+            services.AddSingleton<Pkcs12ClientDefinition<IMyCustomMaskinportenSettings>>();
+
+            // Add another client definition for exisiting implementation but wuth overridden configuration
+            services.AddSingleton(_ => new CertificateStoreClientDefinition<IMyCustomMaskinportenSettings>(new MaskinportenSettings()
+            {
+                Environment = "prod",
+                ClientId = "some-id",
+                Scope = "somescope",
+                CertificateStoreThumbprint = "somethumbprinthere"
+            }));
+
+            // Add a client definition with fully custom client definition implementation 
+            services.AddSingleton<MyCustomClientDefinition>();
+
+            // Add handlers for the various definitions
+            services.AddTransient<MaskinportenTokenHandler<SettingsJwkClientDefinition>>();
+            services.AddTransient<MaskinportenTokenHandler<Pkcs12ClientDefinition>>();
+            services.AddTransient<MaskinportenTokenHandler<CertificateStoreClientDefinition>>();
+            services.AddTransient<MaskinportenTokenHandler<Pkcs12ClientDefinition<IMyCustomMaskinportenSettings>>>();
+            services.AddTransient<MaskinportenTokenHandler<MyCustomClientDefinition>>();
+            
+            // Add some named clients
+            services.AddHttpClient("client1").AddHttpMessageHandler<MaskinportenTokenHandler<SettingsJwkClientDefinition>>();
+            services.AddHttpClient("client2").AddHttpMessageHandler<MaskinportenTokenHandler<Pkcs12ClientDefinition>>();
+            services.AddHttpClient("client3").AddHttpMessageHandler<MaskinportenTokenHandler<CertificateStoreClientDefinition>>();
+            services.AddHttpClient("client4").AddHttpMessageHandler<MaskinportenTokenHandler<Pkcs12ClientDefinition<IMyCustomMaskinportenSettings>>>();
+            services.AddHttpClient("client5").AddHttpMessageHandler<MaskinportenTokenHandler<CertificateStoreClientDefinition<IMyCustomMaskinportenSettings>>>();
+            services.AddHttpClient("client6").AddHttpMessageHandler<MaskinportenTokenHandler<MyCustomClientDefinition>>();
+
+            // Add a typed client
+            services.AddHttpClient<MyHttpClient>().AddHttpMessageHandler<MaskinportenTokenHandler<CertificateStoreClientDefinition<IMyCustomMaskinportenSettings>>>();
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)

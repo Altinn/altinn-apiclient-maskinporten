@@ -1,13 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Altinn.ApiClients.Maskinporten.Service;
+﻿using Altinn.ApiClients.Maskinporten.Interfaces;
 
 namespace Altinn.ApiClients.Maskinporten.Config
 {
-    public class MaskinportenSettings<T> : MaskinportenSettings where T : ICustomClientSecret {}
     public class MaskinportenSettings
     {
         /// <summary>
@@ -26,43 +20,30 @@ namespace Altinn.ApiClients.Maskinporten.Config
         public string Resource { get; set; }
 
         /// <summary>
-        /// Base64 Encoded Json Web Key including
-        /// </summary>
-        public string EncodedJwk { get; set; }
-
-        /// <summary>
         /// The Maskinporten environment. Valid values are ver1, ver2 or prod
         /// </summary>
         public string Environment { get; set; }
 
         /// <summary>
-        /// The URI for the token endpoint
+        /// Path to X.509 certificate with private key in PKCS#12-file 
         /// </summary>
-        public string TokenEndpointProd { get; set; } = "https://maskinporten.no/token";
+        public string CertificatePkcs12Path { get; set; }
 
         /// <summary>
-        /// Set the Audience for the JWT Assertion
+        /// Secrete to X.509 certificate with private key in PKCS#12-file 
         /// </summary>
-        public string JwtAssertionAudienceProd { get; set; } = "https://maskinporten.no/";
+        public string CertificatePkcs12Password { get; set; }
 
         /// <summary>
-        /// The URI for the token endpoint
+        /// Thumbprint for cert in local machine certificate store (Windows only)
         /// </summary>
-        public string TokenEndpointVer1 { get; set; } = "https://ver1.maskinporten.no/token";
+        public string CertificateStoreThumbprint { get; set; }
 
         /// <summary>
-        /// Set the Audience for the JWT Assertion
+        /// Base64 Encoded Json Web Key 
         /// </summary>
-        public string JwtAssertionAudienceVer1 { get; set; } = "https://ver1.maskinporten.no/";
-
-        /// <summary>
-        /// The URI for the token endpoint
-        /// </summary>
-        public string TokenEndpointVer2 { get; set; } = "https://ver2.maskinporten.no/token";
-
-        /// <summary>
-        /// Set the Audience for the JWT Assertion
-        /// </summary>
-        public string JwtAssertionAudienceVer2 { get; set; } = "https://ver2.maskinporten.no/";
+        public string EncodedJwk { get; set; }
     }
+
+    public class MaskinportenSettings<T> : MaskinportenSettings where T : IClientDefinition { }
 }

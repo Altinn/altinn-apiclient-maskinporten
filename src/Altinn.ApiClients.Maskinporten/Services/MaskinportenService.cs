@@ -1,12 +1,7 @@
-﻿using Altinn.ApiClients.Maskinporten.Config;
-using Altinn.ApiClients.Maskinporten.Models;
-using Altinn.ApiClients.Maskinporten.Service;
+﻿using Altinn.ApiClients.Maskinporten.Models;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
@@ -14,96 +9,75 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Altinn.ApiClients.Maskinporten.Interfaces;
 
 namespace Altinn.ApiClients.Maskinporten.Services
 {
-
-    public class MaskinportenService<T> : MaskinportenService, IMaskinportenService<T> where T : ICustomClientSecret
-    {
-        public MaskinportenService(HttpClient httpClient, 
-            IOptions<MaskinportenSettings<T>> maskinportenConfig, 
-            ILogger<IMaskinportenService<T>> logger, 
-            IMemoryCache memoryCache, 
-            IClientSecret<T> clientSecret) : base(httpClient, maskinportenConfig, logger, memoryCache, clientSecret)
-        {
-        }
-    }
-
     public class MaskinportenService: IMaskinportenService
     {
         private readonly HttpClient _client;
 
-        private readonly MaskinportenSettings _maskinportenConfig;
-
         private readonly ILogger _logger;
-
-        private readonly IClientSecret _clientSecret;
 
         private readonly IMemoryCache _memoryCache;
 
-        static SemaphoreSlim semaphoreSlim = new SemaphoreSlim(1, 1);
+        private static readonly SemaphoreSlim SemaphoreSlim = new SemaphoreSlim(1, 1);
 
         public MaskinportenService(HttpClient httpClient, 
-            IOptions<MaskinportenSettings> maskinportenConfig, 
             ILogger<IMaskinportenService> logger,
-            IMemoryCache memoryCache,
-            IClientSecret clientSecret)
+            IMemoryCache memoryCache)
         {
             httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             _client = httpClient;
-            _maskinportenConfig = maskinportenConfig.Value;
             _logger = logger;
             _memoryCache = memoryCache;
-            _clientSecret = clientSecret;
         }
 
-     
-        public async Task<TokenResponse> GetToken(X509Certificate2 cert, string clientId, string scope, string resource, bool disableCaching = false)
+        public async Task<TokenResponse> GetToken(X509Certificate2 cert, string environment, string clientId, string scope, string resource, bool disableCaching = false)
         {
-            return await GetToken(cert, null, clientId, scope, resource, disableCaching);
+            return await GetToken(cert, null, environment, clientId, scope, resource, disableCaching);
         }
 
-        public async Task<TokenResponse> GetToken(JsonWebKey jwk, string clientId, string scope, string resource, bool disableCaching = false)
+        public async Task<TokenResponse> GetToken(JsonWebKey jwk, string environment, string clientId, string scope, string resource, bool disableCaching = false)
         {
-            return await GetToken(null, jwk, clientId, scope, resource, disableCaching);
+            return await GetToken(null, jwk, environment, clientId, scope, resource, disableCaching);
         }
 
-        public async Task<TokenResponse> GetToken(string base64EncodedJwk, string clientId, string scope, string resource, bool disableCaching = false)
+        public async Task<TokenResponse> GetToken(string base64EncodedJwk, string environment, string clientId, string scope, string resource, bool disableCaching = false)
         {
             byte[] base64EncodedBytes = Convert.FromBase64String(base64EncodedJwk);
             string jwkjson = Encoding.UTF8.GetString(base64EncodedBytes);
             JsonWebKey jwk = new JsonWebKey(jwkjson);
-            return await GetToken(null, jwk, clientId, scope, resource, disableCaching);
+            return await GetToken(null, jwk, environment, clientId, scope, resource, disableCaching);
         }
 
-        public async Task<TokenResponse> GetToken(bool disableCaching = false)
+        public async Task<TokenResponse> GetToken(IClientDefinition clientDefinition, bool disableCaching = false)
         {
-            ClientSecrets clientSecrets = await _clientSecret.GetClientSecrets();
+            ClientSecrets clientSecrets = await clientDefinition.GetClientSecrets();
             if (clientSecrets.ClientKey != null)
             {
-                return await GetToken(null, clientSecrets.ClientKey, _maskinportenConfig.ClientId, _maskinportenConfig.Scope, _maskinportenConfig.Resource, disableCaching);
+                return await GetToken(null, clientSecrets.ClientKey, clientDefinition.ClientSettings.Environment, clientDefinition.ClientSettings.ClientId, clientDefinition.ClientSettings.Scope, clientDefinition.ClientSettings.Resource, disableCaching);
             }
-            else
-            {
-                return await GetToken(clientSecrets.ClientCertificate, null , _maskinportenConfig.ClientId, _maskinportenConfig.Scope, _maskinportenConfig.Resource, disableCaching);
-            }
+
+            return await GetToken(clientSecrets.ClientCertificate, null, clientDefinition.ClientSettings.Environment, clientDefinition.ClientSettings.ClientId, clientDefinition.ClientSettings.Scope, clientDefinition.ClientSettings.Resource, disableCaching);
         }
 
-        private async Task<TokenResponse> GetToken(X509Certificate2 cert, JsonWebKey jwk, string clientId, string scope, string resource, bool disableCaching)
+        private async Task<TokenResponse> GetToken(X509Certificate2 cert, JsonWebKey jwk, string environment, string clientId, string scope, string resource, bool disableCaching)
         {
             string cacheKey = $"{clientId}-{scope}-{resource}";
             TokenResponse accesstokenResponse;
 
-            await semaphoreSlim.WaitAsync();
+            await SemaphoreSlim.WaitAsync();
             try
             {
                 if (disableCaching || !_memoryCache.TryGetValue(cacheKey, out accesstokenResponse))
                 {
-                    string jwtAssertion = GetJwtAssertion(cert, jwk, clientId, scope, resource);
+                    string jwtAssertion = GetJwtAssertion(cert, jwk, environment, clientId, scope, resource);
                     FormUrlEncodedContent content = GetUrlEncodedContent(jwtAssertion);
-                    accesstokenResponse = await PostToken(content);
+                    accesstokenResponse = await PostToken(environment, content);
 
                     MemoryCacheEntryOptions cacheEntryOptions = new MemoryCacheEntryOptions()
                     {
@@ -115,13 +89,13 @@ namespace Altinn.ApiClients.Maskinporten.Services
             }
             finally
             {
-                semaphoreSlim.Release();
+                SemaphoreSlim.Release();
             }
 
             return accesstokenResponse;
         }
 
-        public string GetJwtAssertion(X509Certificate2 cert, JsonWebKey jwk, string clientId, string scope, string resource)
+        public string GetJwtAssertion(X509Certificate2 cert, JsonWebKey jwk, string environment, string clientId, string scope, string resource)
         {
             DateTimeOffset dateTimeOffset = new DateTimeOffset(DateTime.UtcNow);
             JwtHeader header;
@@ -136,7 +110,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
 
             JwtPayload payload = new JwtPayload
             {
-                { "aud", GetAssertionAud() },
+                { "aud", GetAssertionAud(environment) },
                 { "scope", scope },
                 { "iss", clientId },
                 { "exp", dateTimeOffset.ToUnixTimeSeconds() + 10 },
@@ -157,8 +131,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
 
         private JwtHeader GetHeader(JsonWebKey jwk)
         {
-            JwtHeader header = new JwtHeader(new SigningCredentials(jwk, SecurityAlgorithms.RsaSha256));
-            return header;
+            return new JwtHeader(new SigningCredentials(jwk, SecurityAlgorithms.RsaSha256));
         }
 
         private JwtHeader GetHeader(X509Certificate2 cert)
@@ -170,6 +143,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
             };
             header.Remove("typ");
             header.Remove("kid");
+
             return header;
         }
 
@@ -184,14 +158,12 @@ namespace Altinn.ApiClients.Maskinporten.Services
             return formContent;
         }
 
-        public async Task<TokenResponse> PostToken(FormUrlEncodedContent bearer)
+        public async Task<TokenResponse> PostToken(string environment, FormUrlEncodedContent bearer)
         {
-            TokenResponse token = null; ;
-
             HttpRequestMessage requestMessage = new HttpRequestMessage()
             {
                 Method = HttpMethod.Post,
-                RequestUri = new Uri(GetTokenEndpoint()),
+                RequestUri = new Uri(GetTokenEndpoint(environment)),
                 Content = bearer
             };
 
@@ -199,48 +171,42 @@ namespace Altinn.ApiClients.Maskinporten.Services
 
             if (response.IsSuccessStatusCode)
             {
-                string content = await response.Content.ReadAsStringAsync();
-                token = System.Text.Json.JsonSerializer.Deserialize<TokenResponse>(content);
-                return token;
+                string successResponse = await response.Content.ReadAsStringAsync();
+                return JsonSerializer.Deserialize<TokenResponse>(successResponse);
             }
-            else
+            
+            string errorResponse = await response.Content.ReadAsStringAsync();
+            ErrorReponse error = JsonSerializer.Deserialize<ErrorReponse>(errorResponse) ?? new ErrorReponse()
             {
-                string error = await response.Content.ReadAsStringAsync();
-                _logger.LogError(response.StatusCode + " " + error);
-            }
+                ErrorType = "deserializing",
+                Description = "Unable to deserialize error from Maskinporten. Received: " +
+                              (string.IsNullOrEmpty(errorResponse) ? "<empty>" : errorResponse)
+            };
 
-            return null;
+            _logger.LogError("errorType={errorType} description={description} statuscode={statusCode}", error.ErrorType, error.Description, response.StatusCode);
+            throw new TokenRequestException(error.Description);
         }
 
-        private string GetAssertionAud()
+        private string GetAssertionAud(string environment)
         {
-            switch (_maskinportenConfig.Environment)
+            return environment switch
             {
-                case "prod":
-                    return _maskinportenConfig.JwtAssertionAudienceProd;
-                case "ver1":
-                    return _maskinportenConfig.JwtAssertionAudienceVer1;
-                case "ver2":
-                    return _maskinportenConfig.JwtAssertionAudienceVer2;
-            }
-
-            return null;
+                "prod" => "https://maskinporten.no/",
+                "ver1" => "https://ver1.maskinporten.no/",
+                "ver2" => "https://ver2.maskinporten.no/",
+                _ => throw new ArgumentException("Invalid environment setting. Valid values: prod, ver1, ver2")
+            };
         }
 
-        private string GetTokenEndpoint()
+        private string GetTokenEndpoint(string environment)
         {
-            switch (_maskinportenConfig.Environment)
+            return environment switch
             {
-                case "prod":
-                    return _maskinportenConfig.TokenEndpointProd;
-                case "ver1":
-                    return _maskinportenConfig.TokenEndpointVer1;
-                case "ver2":
-                    return _maskinportenConfig.TokenEndpointVer2;
-            }
-
-           return null;
+                "prod" => "https://maskinporten.no/token",
+                "ver1" => "https://ver1.maskinporten.no/token",
+                "ver2" => "https://ver2.maskinporten.no/token",
+                _ => throw new ArgumentException("Invalid environment setting. Valid values: prod, ver1, ver2")
+            };
         }
-
     }
 }

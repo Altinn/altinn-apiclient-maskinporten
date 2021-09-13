@@ -25,11 +25,14 @@ namespace SampleWebApp.Controllers
         [HttpGet]
         public async Task<string> Get()
         {
-            var clientFoo = _clientFactory.CreateClient("foo");
-            var clientBar = _clientFactory.CreateClient("bar");
+           var client1 = _clientFactory.CreateClient("client1");
+           var client2 = _clientFactory.CreateClient("client2");
+           var client3 = _clientFactory.CreateClient("client3");
+           var client4 = _clientFactory.CreateClient("client4");
+           var client5 = _clientFactory.CreateClient("client5");
 
-            var resultFoo = await clientFoo.GetAsync("https://ent878u4vial.x.pipedream.net");
-            var resultBar = await clientBar.GetAsync("https://ent878u4vial.x.pipedream.net");
+           // var result1 = await client1.GetAsync("https://ent878u4vial.x.pipedream.net");
+           var result2 = await client2.GetAsync("https://en07biquml4v5n.x.pipedream.net");
 
             return "Done";
 
