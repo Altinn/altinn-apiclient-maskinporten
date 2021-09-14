@@ -31,8 +31,18 @@ namespace SampleWebApp
             // We also need at least one HTTP client in order to fetch tokens
             services.AddHttpClient();
             
-            // We only need a single Maskinporten-service. This can be used directly if low level access is required.
+            // We only need a single Maskinporten-service for all clients. This can be used directly if low level access is required.
             services.AddSingleton<IMaskinportenService, MaskinportenService>();
+
+            // To create a HttpClient where Maskinporten-token-handling is performed transparently, we need to add a client defintion. A client
+            // definition consists of two things; Maskinporten-related settings (environment, client_id, scopes and optionally resource) and a way to aquire the secret
+            // required to sign the request (either a X509 certificate or a JWK containing a custom keypair)
+            //
+            // This library supports several ways of aquiring secrets, and a mechanism to provide your own if needed (for instance to Azure Keyvault). These will 
+            // require settings to be loaded in a MaskinportenSettings<T> where T is the type for the selected client defintion
+            //
+            // In order to have separate client configurations using the same type (eg. two clients using different thumbprints), you can configure a 
+            // MaskinportenSettings<T<T2>> where T2 is just a arbitrary interface extending IClientDefinition
 
             // Add some configurations that will be injected for the respective client definitions
             services.Configure<MaskinportenSettings<SettingsJwkClientDefinition>>(Configuration.GetSection("MaskinportenSettingsForJwkSettings"));
@@ -66,6 +76,7 @@ namespace SampleWebApp
             services.AddTransient<MaskinportenTokenHandler<Pkcs12ClientDefinition>>();
             services.AddTransient<MaskinportenTokenHandler<CertificateStoreClientDefinition>>();
             services.AddTransient<MaskinportenTokenHandler<Pkcs12ClientDefinition<IMyCustomMaskinportenSettings>>>();
+            services.AddTransient<MaskinportenTokenHandler<CertificateStoreClientDefinition<IMyCustomMaskinportenSettings>>>();
             services.AddTransient<MaskinportenTokenHandler<MyCustomClientDefinition>>();
             
             // Add some named clients
