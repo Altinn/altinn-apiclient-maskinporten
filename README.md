@@ -1,21 +1,41 @@
 # .NET client for Maskinporten APIs
 
-
 This .NET client library is used for calling maskinporten and create an access token to be used for services that require an Maskinporten access token
 
-## Setup as HttpHandler with config in Appsettings
+## Setup as HttpHandler 
 
-There are different ways to set this up. For most using the HttpHandler configuration is easyies
+There are different ways to set this up. For most using the HttpHandler configuration is the most convenient way of using this library, offering a HttpClient that
+can be injected and used transparently.
 
-1. Client needs to configured in startup
+You will need to configure a client definition, which is a way of providing the necessary OAuth2-related settings (client-id, scopes etc) as well as a way of getting 
+the secret (either a X.509 certificate with a private key or a JWK with a private key) used to sign the requests to Maskinporten. 
+
+There are several different client definitions available, or one can provide a custom one if required. See the "SampleWebApp"-project (especially Startup.cs) for examples
+on how this can be done.
+
+1. Client needs to configured in `ConfigureServices`, where `services` is a `IServiceCollection`
 
 ```c#
-    // Maskinporten setup with custom API client setup
-    services.Configure<MaskinportenSettings>(Configuration.GetSection("MaskinportenSettings"));
-    services.AddTransient<IClientSecret, AltinnAppClientSecretService>();
-    services.AddHttpClient<IMaskinporten, MaskinportenService>();
-    services.AddTransient<MaskinportenTokenHandler>();
-    services.AddHttpClient<IReelleRettigheter, ReelleRettigheter>().AddHttpMessageHandler<MaskinportenTokenHandler>();
+// Maskinporten requires a memory cache implementation
+services.AddSingleton<IMemoryCache, MemoryCache>();
+
+// We also need at least one HTTP client in order to fetch tokens
+services.AddHttpClient();
+
+// We only need a single Maskinporten-service for all Maskinporten-powered clients. This service can be used directly if low level access is required (see below).
+services.AddSingleton<IMaskinportenService, MaskinportenService>();
+
+// Add the configuration needed for the client definition you want to use
+services.Configure<MaskinportenSettings<SettingsJwkClientDefinition>>(Configuration.GetSection("MaskinportenSettings"));
+
+// Add the client definitition you want to use. In this one we have a base64-encoded JWK defined in the settings.
+services.AddSingleton<SettingsJwkClientDefinition>();   
+
+// Add handler for the client definition
+services.AddTransient<MaskinportenTokenHandler<SettingsJwkClientDefinition>>();
+            
+// Add anamed clients
+services.AddHttpClient("myclient").AddHttpMessageHandler<MaskinportenTokenHandler<SettingsJwkClientDefinition>>();
 ```
 
 2. Configure Maskinporten environement in appsetting.json
@@ -29,76 +49,22 @@ There are different ways to set this up. For most using the HttpHandler configur
   }
 ```
 
-## Setup as Http Hander with custom Secret Service
-
-
-There are different ways to set this up. For most using the HttpHandler configuration is easyies
-
-1. Client needs to configured in startup
-
-```c#
-    // Maskinporten setup with custom API client setup
-    services.Configure<MaskinportenSettings>(Configuration.GetSection("MaskinportenSettings"));
-    services.AddTransient<IClientSecret, AltinnAppClientSecretService>();
-    services.AddHttpClient<IMaskinporten, MaskinportenService>();
-    services.AddTransient<MaskinportenTokenHandler>();
-    services.AddHttpClient<IReelleRettigheter, ReelleRettigheter>().AddHttpMessageHandler<MaskinportenTokenHandler>();
-```
-
-2. Configure Maskinporten environement in appsetting.json
-
-```json
-  "MaskinportenSettings": {
-    "Environment": "ver2",
-    "ClientId": "e15abbbc-36ad-4300-abe9-021c9a245e20",
-    "Scope": "altinn:serviceowner/readaltinn",
-  }
-```
-
-3. Create custom implementation of SecretService.
-
-```c#
-namespace Altinn.App.Services
-{
-    /// <summary>
-    /// Custom implementation of ClientSecret Service. Get Json Webkey from Azure Keyvault throug Altinn App Secret Service
-    /// </summary>
-    public class AltinnAppClientSecretService : IClientSecret
-    {
-        private ISecrets _secrets;
-
-        public AltinnAppClientSecretService(ISecrets secrets)
-        {
-            _secrets = secrets;
-        }
-
-        public async Task<ClientSecrets> GetClientSecrets()
-        {
-            ClientSecrets clientSecrets = new ClientSecrets();
-
-            string base64encodedJWK = await _secrets.GetSecretAsync("maskinportentoken");
-            byte[] base64EncodedBytes = Convert.FromBase64String(base64encodedJWK);
-            string jwkjson = Encoding.UTF8.GetString(base64EncodedBytes);
-            clientSecrets.ClientKey = new JsonWebKey(jwkjson);
-
-            return clientSecrets;
-        }
-    }
-}
-```
+**See the "SampleWebApp"-project (especially Startup.cs) for more examples on various client defintions, custom definitions and several clients with different configurations**
 
 ## Manual use of TokenService
 
 1. Client needs to configured in startup
 
 ```c#
-    // Maskinporten setup with custom API client setup
-    services.Configure<MaskinportenSettings>(Configuration.GetSection("MaskinportenSettings"));
-    services.AddTransient<IClientSecret, AltinnAppClientSecretService>();
-    services.AddHttpClient<IMaskinporten, MaskinportenService>();
-    services.AddHttpClient<IReelleRettigheter, ReelleRettigheter>().AddHttpMessageHandler<MaskinportenTokenHandler>();
-```
+// Maskinporten requires a memory cache implementation
+services.AddSingleton<IMemoryCache, MemoryCache>();
 
+// We also need at least one HTTP client in order to fetch tokens
+services.AddHttpClient();
+
+// Adds service can be used directly, see below. This exposes several GetToken() overloads.
+services.AddSingleton<IMaskinportenService, MaskinportenService>();
+```
 
 3. Configure client in constructur for service that need Maskinporten token
 
@@ -106,28 +72,29 @@ namespace Altinn.App.Services
 4. Call maskinporten API and a
 
 ```c#
-    private async Task<string> GetMaskinPortenAccessToken()
+private async Task<string> GetMaskinPortenAccessToken()
+{
+    try
+    {
+        string accessToken = null;
+
+        string cacheKey = $"{_maskinportenSettings.ClientId}-{_maskinportenSettings.Scope}";
+
+        if (!_memoryCache.TryGetValue(cacheKey, out accessToken))
         {
-            try
+            string base64encodedJWK = await _secrets.GetSecretAsync("maskinportentoken");
+            TokenResponse accesstokenResponse = await _maskinporten.GetToken(base64encodedJWK, _maskinportenSettings.ClientId, _maskinportenSettings.Scope, null);
+            accessToken = accesstokenResponse.AccessToken;
+            MemoryCacheEntryOptions cacheEntryOptions = new MemoryCacheEntryOptions()
             {
-                string accessToken = null;
-
-                string cacheKey = $"{_maskinportenSettings.ClientId}-{_maskinportenSettings.Scope}";
-
-                if (!_memoryCache.TryGetValue(cacheKey, out accessToken))
-                {
-                    string base64encodedJWK = await _secrets.GetSecretAsync("maskinportentoken");
-                    TokenResponse accesstokenResponse = await _maskinporten.GetToken(base64encodedJWK, _maskinportenSettings.ClientId, _maskinportenSettings.Scope, null);
-                    accessToken = accesstokenResponse.AccessToken;
-                    MemoryCacheEntryOptions cacheEntryOptions = new MemoryCacheEntryOptions()
-                    {
-                        Priority = CacheItemPriority.High,
-                    };
-                    cacheEntryOptions.SetAbsoluteExpiration(new TimeSpan(0, 0, accesstokenResponse.ExpiresIn - 30));
-                    _memoryCache.Set(cacheKey, accessToken, cacheEntryOptions);
-                 }
-
-                return accessToken;
-
+                Priority = CacheItemPriority.High,
+            };
+            cacheEntryOptions.SetAbsoluteExpiration(new TimeSpan(0, 0, accesstokenResponse.ExpiresIn - 30));
+            _memoryCache.Set(cacheKey, accessToken, cacheEntryOptions);
             }
+
+        return accessToken;
+
+    }
+}
 ```

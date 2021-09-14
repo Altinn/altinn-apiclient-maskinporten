@@ -8,6 +8,7 @@ using Altinn.ApiClients.Maskinporten.Handlers;
 using Altinn.ApiClients.Maskinporten.Interfaces;
 using Altinn.ApiClients.Maskinporten.Services;
 using Microsoft.Extensions.Caching.Memory;
+using SampleWebApp.Config;
 
 namespace SampleWebApp
 {
@@ -48,8 +49,12 @@ namespace SampleWebApp
             services.Configure<MaskinportenSettings<SettingsJwkClientDefinition>>(Configuration.GetSection("MaskinportenSettingsForJwkSettings"));
             services.Configure<MaskinportenSettings<Pkcs12ClientDefinition>>(Configuration.GetSection("MyMaskinportenSettingsForCertFile"));
             services.Configure<MaskinportenSettings<CertificateStoreClientDefinition>>(Configuration.GetSection("MyMaskinportenSettingsForThumbprint"));
+            
             // Add some custom configuration which will be injected for the supplied definition
             services.Configure<MaskinportenSettings<Pkcs12ClientDefinition<IMyCustomMaskinportenSettings>>>(Configuration.GetSection("MyCustomMaskinportenSettingsForCertFile"));
+            
+            // Add some configuration to our custom client definition
+            services.Configure<MyCustomClientDefinitionSettings>(Configuration.GetSection("MyCustomClientDefinition"));
 
             // Add some client definitions
             services.AddSingleton<SettingsJwkClientDefinition>();   
@@ -87,7 +92,7 @@ namespace SampleWebApp
             services.AddHttpClient("client5").AddHttpMessageHandler<MaskinportenTokenHandler<CertificateStoreClientDefinition<IMyCustomMaskinportenSettings>>>();
             services.AddHttpClient("client6").AddHttpMessageHandler<MaskinportenTokenHandler<MyCustomClientDefinition>>();
 
-            // Add a typed client
+            // Add a typed clients
             services.AddHttpClient<MyHttpClient>().AddHttpMessageHandler<MaskinportenTokenHandler<CertificateStoreClientDefinition<IMyCustomMaskinportenSettings>>>();
         }
 
