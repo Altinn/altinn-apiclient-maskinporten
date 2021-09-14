@@ -1,22 +1,22 @@
-﻿using Altinn.ApiClients.Maskinporten.Config;
-using Altinn.ApiClients.Maskinporten.Models;
-using Altinn.ApiClients.Maskinporten.Services;
-using Microsoft.Extensions.Options;
+﻿using Altinn.ApiClients.Maskinporten.Models;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
+using Altinn.ApiClients.Maskinporten.Interfaces;
 
 namespace Altinn.ApiClients.Maskinporten.Handlers
 {
-    public class MaskinportenTokenHandler : DelegatingHandler
+    public class MaskinportenTokenHandler<T> : DelegatingHandler where T : IClientDefinition
     {
-        private IMaskinporten _maskinporten;
+        private readonly IMaskinportenService _maskinporten;
+        private readonly T _clientDefinition;
 
-        public MaskinportenTokenHandler(IMaskinporten maskinporten)
+        public MaskinportenTokenHandler(IMaskinportenService maskinporten, T clientDefinition)
         {
             _maskinporten = maskinporten;
+            _clientDefinition = clientDefinition;
         }
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
@@ -46,15 +46,15 @@ namespace Altinn.ApiClients.Maskinporten.Handlers
         private async Task<TokenResponse> GetTokenResponse(CancellationToken cancellationToken)
         {
             if (cancellationToken.IsCancellationRequested) return null;
-            TokenResponse tokenResponse =  await _maskinporten.GetToken();
+            TokenResponse tokenResponse =  await _maskinporten.GetToken(_clientDefinition);
             return tokenResponse;
         }
 
         private async Task<TokenResponse> RefreshTokenResponse(CancellationToken cancellationToken)
         {
-                if (cancellationToken.IsCancellationRequested) return null;
-                 TokenResponse tokenResponse = await _maskinporten.GetToken(true);
-                return tokenResponse;
+            if (cancellationToken.IsCancellationRequested) return null;
+            TokenResponse tokenResponse = await _maskinporten.GetToken(_clientDefinition, true);
+            return tokenResponse;
         }
     }
 }
