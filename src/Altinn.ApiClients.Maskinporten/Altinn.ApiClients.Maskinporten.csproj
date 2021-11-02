@@ -2,9 +2,15 @@
 
   <PropertyGroup>
     <TargetFramework>net5.0</TargetFramework>
-    <Version>0.9.62-alpha</Version>
+    <Version>1.0.0</Version>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <PackageId>Altinn.ApiClients.Maskinporten</PackageId>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/elsand/altinn-apiclient-maskinporten</RepositoryUrl>
+  </PropertyGroup>
+   
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Caching.Abstractions" Version="5.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="5.0.0" />
@@ -12,5 +18,5 @@
     <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="6.11.1" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="6.11.1" />
   </ItemGroup>
-
+   
 </Project>
