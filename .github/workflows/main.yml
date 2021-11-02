@@ -18,12 +18,14 @@ jobs:
         git branch --remote --contains | grep origin/main
     - name: Set VERSION variable from tag
       run: echo "VERSION=${GITHUB_REF/refs\/tags\/v/}" >> $GITHUB_ENV
+    - name: Set SOLUTION variable to point to solution file
+      run: echo "SOLUTION=src/Altinn.ApiClients.Maskinporten/Altinn.ApiClients.Maskinporten.sln" >> $GITHUB_ENV
     - name: Build
-      run: dotnet build --configuration Release /p:Version=${VERSION}
+      run: dotnet build --configuration Release /p:Version=${VERSION} ${SOLUTION}
     - name: Test
-      run: dotnet test --configuration Release /p:Version=${VERSION} --no-build
+      run: dotnet test --configuration Release /p:Version=${VERSION} --no-build ${SOLUTION}
     - name: Pack
-      run: dotnet pack --configuration Release /p:Version=${VERSION} --no-build --output .
+      run: dotnet pack --configuration Release /p:Version=${VERSION} --no-build --output . ${SOLUTION}
     - name: Push
       run: dotnet nuget push Altinn.ApiClients.Maskinporten.${VERSION}.nupkg --source https://nuget.pkg.github.com/elsand/index.json --api-key ${GITHUB_TOKEN}
       env:
