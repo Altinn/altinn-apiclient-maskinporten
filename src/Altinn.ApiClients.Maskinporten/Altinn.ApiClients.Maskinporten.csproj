@@ -8,7 +8,7 @@
   <PropertyGroup>
     <PackageId>Altinn.ApiClients.Maskinporten</PackageId>
     <RepositoryType>git</RepositoryType>
-    <RepositoryUrl>https://github.com/elsand/altinn-apiclient-maskinporten</RepositoryUrl>
+    <RepositoryUrl>https://github.com/Altinn/altinn-apiclient-maskinporten</RepositoryUrl>
   </PropertyGroup>
    
   <ItemGroup>
