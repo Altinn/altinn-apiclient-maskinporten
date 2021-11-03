@@ -29,6 +29,6 @@ jobs:
     - name: Pack
       run: dotnet pack --configuration Release /p:Version=${VERSION} --no-build --output . ${SOLUTION}
     - name: Push
-      run: dotnet nuget push Altinn.ApiClients.Maskinporten.${VERSION}.nupkg --source https://nuget.pkg.github.com/${GITHUB_ACTOR}/index.json --api-key ${GITHUB_TOKEN}
+      run: dotnet nuget push *.${VERSION}.nupkg --source https://nuget.pkg.github.com/${GITHUB_ACTOR}/index.json --api-key ${GITHUB_TOKEN}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
