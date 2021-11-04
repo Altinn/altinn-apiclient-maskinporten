@@ -34,11 +34,11 @@ services.AddSingleton<SettingsJwkClientDefinition>();
 // Add handler for the client definition
 services.AddTransient<MaskinportenTokenHandler<SettingsJwkClientDefinition>>();
             
-// Add anamed clients
+// Add a named (or typed) client
 services.AddHttpClient("myclient").AddHttpMessageHandler<MaskinportenTokenHandler<SettingsJwkClientDefinition>>();
 ```
 
-2. Configure Maskinporten environement in appsetting.json
+2. Configure Maskinporten environment in appsetting.json
 
 ```json
   "MaskinportenSettings": {
@@ -47,6 +47,30 @@ services.AddHttpClient("myclient").AddHttpMessageHandler<MaskinportenTokenHandle
     "Scope": "altinn:serviceowner/readaltinn",
     "EncodedJwk": "eyJwIjoiMms2RlZMRW9iVVY0dmpjRjRCVWNLOUhasdfasdfarhgawfN2YXE5eE95a3NyS1Q345435S19oNV45645635423545t45t54wrgsdfgsfdgsfd444aefasdf5NzdFcWhGTGtaSVAzSmhZTlA0MEZOc1EifQ=="
   }
+```
+
+3. Using the client
+
+```c#
+// The Maskinporten-enabled client can then be utilized like any other HttpClient via HttpClientFactory, eg DI-ed in a controller like this:
+public class MyController : ControllerBase
+{
+    private readonly IHttpClientFactory _clientFactory;
+
+    public MyController(IHttpClientFactory clientFactory)
+     {
+        _clientFactory = clientFactory;
+     }
+
+    [HttpGet]
+    public async Task<string> Get()
+    {
+       var myclient = _clientFactory.CreateClient("myclient");
+       
+       // This request will be sent with a Authorization-header containing a bearer token
+       var result = await client.GetAsync("https://example.com/");
+    }
+}
 ```
 
 **See the "SampleWebApp"-project (especially Startup.cs) for more examples on various client defintions, custom definitions and several clients with different configurations**
@@ -68,8 +92,7 @@ services.AddSingleton<IMaskinportenService, MaskinportenService>();
 
 3. Configure client in constructur for service that need Maskinporten token
 
-
-4. Call maskinporten API and a
+4. Call maskinporten API to get the token. Here we use MemoryCache ourselves to cache the token based on its exp-claim.
 
 ```c#
 private async Task<string> GetMaskinPortenAccessToken()
@@ -82,19 +105,18 @@ private async Task<string> GetMaskinPortenAccessToken()
 
         if (!_memoryCache.TryGetValue(cacheKey, out accessToken))
         {
-            string base64encodedJWK = await _secrets.GetSecretAsync("maskinportentoken");
+            string base64encodedJWK = await _secrets.GetSecretAsync("myBase64EncodedJwkWithPrivateKey");
             TokenResponse accesstokenResponse = await _maskinporten.GetToken(base64encodedJWK, _maskinportenSettings.ClientId, _maskinportenSettings.Scope, null);
             accessToken = accesstokenResponse.AccessToken;
             MemoryCacheEntryOptions cacheEntryOptions = new MemoryCacheEntryOptions()
             {
                 Priority = CacheItemPriority.High,
             };
-            cacheEntryOptions.SetAbsoluteExpiration(new TimeSpan(0, 0, accesstokenResponse.ExpiresIn - 30));
+            cacheEntryOptions.SetAbsoluteExpiration(new TimeSpan(0, 0, accesstokenResponse.ExpiresIn - 10));
             _memoryCache.Set(cacheKey, accessToken, cacheEntryOptions);
-            }
+        }
 
         return accessToken;
-
     }
 }
 ```
