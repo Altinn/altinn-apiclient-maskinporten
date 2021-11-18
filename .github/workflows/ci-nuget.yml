@@ -1,0 +1,33 @@
+name: CI Nuget
+
+on:
+  push:
+    branches:
+    - main
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Set VERSION variable from latest tag (if existing) plus date and commit
+      run:  
+        LATEST_TAG=$((git describe --tags --abbrev=0 | sed s/^v//) 2>/dev/null)
+        LATEST_TAG=${LATEST_TAG:=0.0.1}
+        VERSION=${LATEST_TAG}-prerelease.$(date +%Y%m%d)+${GITHUB_SHA:0:5}
+        echo "VERSION=${VERSION}" >> $GITHUB_ENV
+    - name: Set SOLUTION variable to point to solution file
+      run: |
+        SOLUTION=$(find . -name '*.sln' -printf "%p" -quit)
+        echo "SOLUTION=${SOLUTION}" >> $GITHUB_ENV
+    - name: Build
+      run: dotnet build --configuration Release /p:Version=${VERSION} ${SOLUTION}
+    - name: Test
+      run: dotnet test --configuration Release /p:Version=${VERSION} --no-build ${SOLUTION}
+    - name: Pack
+      run: dotnet pack --configuration Release /p:Version=${VERSION} --no-build --output . ${SOLUTION}
+    - name: Push
+      run: dotnet nuget push *.${VERSION}.nupkg --source https://nuget.pkg.github.com/${GITHUB_ACTOR}/index.json --api-key ${GITHUB_TOKEN}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
