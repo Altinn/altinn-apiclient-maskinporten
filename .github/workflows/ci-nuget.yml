@@ -14,7 +14,8 @@ jobs:
     - name: Set VERSION variable from latest tag (if existing) plus date and commit
       run: | 
         git fetch --all --tags
-        LATEST_TAG=$((git describe --tags --abbrev=0 | sed s/^v//) 2>/dev/null)
+        LATEST_TAG=$(git describe --tags --abbrev=0 | sed s/^v//)
+        echo "LATEST_TAG: ${LATEST_TAG}"
         LATEST_TAG=${LATEST_TAG:=0.0.1}
         VERSION=${LATEST_TAG}-next.$(date +%Y%m%d).${GITHUB_RUN_NUMBER}
         echo "VERSION: ${VERSION}" 
