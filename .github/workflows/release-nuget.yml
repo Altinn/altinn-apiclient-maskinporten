@@ -10,6 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+    - name: Verify that NUGET_ORG_API_KEY is set
+      run: test -z ${{ secrets.NUGET_ORG_API_KEY }}
     - name: Checkout
       uses: actions/checkout@v2
     - name: Verify commit exists in origin/main
@@ -28,7 +30,7 @@ jobs:
       run: dotnet test --configuration Release /p:Version=${VERSION} --no-build ${SOLUTION}
     - name: Pack with debug symbols
       run: dotnet pack --configuration Release /p:Version=${VERSION} -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg --output . ${SOLUTION}
-    - name: Push
-      run: dotnet nuget push *.${VERSION}.nupkg --source https://nuget.pkg.github.com/${GITHUB_ACTOR}/index.json --api-key ${GITHUB_TOKEN}
+    - name: Push to nuget.org
+      run: dotnet nuget push *.${VERSION}.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_ORG_API_KEY }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
