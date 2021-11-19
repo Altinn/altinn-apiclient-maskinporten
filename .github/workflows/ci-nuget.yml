@@ -1,0 +1,36 @@
+name: CI Nuget
+
+on:
+  push:
+    branches:
+    - main
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Set VERSION variable from latest tag (if existing) plus date and commit
+      run: | 
+        LATEST_TAG=$(git ls-remote --tags origin | tail -n 1 | awk '{ print $2; }' | sed 's/.*v//')
+        echo "LATEST_TAG: ${LATEST_TAG}"
+        LATEST_TAG=${LATEST_TAG:=0.0.1}
+        VERSION=${LATEST_TAG}-next.$(date +%Y%m%d).${GITHUB_RUN_NUMBER}
+        echo "VERSION: ${VERSION}" 
+        echo "VERSION=${VERSION}" >> $GITHUB_ENV
+    - name: Set SOLUTION variable to point to solution file
+      run: |
+        SOLUTION=$(find . -name '*.sln' -printf "%p" -quit)
+        echo "SOLUTION: ${SOLUTION}"
+        echo "SOLUTION=${SOLUTION}" >> $GITHUB_ENV
+    - name: Build
+      run: dotnet build --configuration Release /p:Version=${VERSION} ${SOLUTION}
+    - name: Test
+      run: dotnet test --configuration Release /p:Version=${VERSION} --no-build ${SOLUTION}
+    - name: Pack with debug symbols
+      run: dotnet pack --configuration Release /p:Version=${VERSION} -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg --output . ${SOLUTION}
+    - name: Push
+      run: dotnet nuget push *.${VERSION}.nupkg --source https://nuget.pkg.github.com/${GITHUB_ACTOR}/index.json --api-key ${GITHUB_TOKEN}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
