@@ -30,7 +30,7 @@ jobs:
     - name: Pack with debug symbols
       run: dotnet pack --configuration Release /p:Version=${VERSION} -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg --output . ${SOLUTION}
     - name: Push
-      run: dotnet nuget push *.${VERSION}.nupkg --source https://nuget.pkg.github.com/${GITHUB_ACTOR}/index.json --api-key ${GITHUB_TOKEN}
+      run: dotnet nuget push *.${VERSION}.nupkg --source https://nuget.pkg.github.com/${GITHUB_REPOSITORY%/*}/index.json --api-key ${GITHUB_TOKEN}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     - name: Push to nuget.org
