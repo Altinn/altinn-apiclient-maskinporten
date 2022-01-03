@@ -2,6 +2,12 @@
 
 This .NET client library is used for calling maskinporten and create an access token to be used for services that require an Maskinporten access token
 
+## Installation
+
+Install the nuget with `dotnet add package Altinn.ApiClients.Maskinporten` or similar.
+
+Pre-release versions of this nuget are made available on Github.
+
 ## Setup as HttpHandler 
 
 There are different ways to set this up. For most using the HttpHandler configuration is the most convenient way of using this library, offering a HttpClient that
