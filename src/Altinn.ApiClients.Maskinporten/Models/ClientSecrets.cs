@@ -6,7 +6,6 @@ namespace Altinn.ApiClients.Maskinporten.Models
     public class ClientSecrets
     {
         public JsonWebKey ClientKey { get; set; }
-
         public X509Certificate2 ClientCertificate { get; set; }
     }
 }

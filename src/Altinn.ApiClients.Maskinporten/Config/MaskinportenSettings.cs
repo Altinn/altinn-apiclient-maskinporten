@@ -43,6 +43,21 @@ namespace Altinn.ApiClients.Maskinporten.Config
         /// Base64 Encoded Json Web Key 
         /// </summary>
         public string EncodedJwk { get; set; }
+
+        /// <summary>
+        /// Optional enterprise username for token enrichment
+        /// </summary>
+        public string EnterpriseUserName { get; set; }
+
+        /// <summary>
+        /// Optional enterprise password for token enrichment
+        /// </summary>
+        public string EnterpriseUserPassword { get; set; }
+
+        /// <summary>
+        /// Optional. Enables Altinn token exchange without enterprise user authentication. Ignored if EnterpriseUserName/Password is supplied (which imples token exchange).
+        /// </summary>
+        public bool? ExhangeToAltinnToken { get; set; }
     }
 
     public class MaskinportenSettings<T> : MaskinportenSettings where T : IClientDefinition { }
