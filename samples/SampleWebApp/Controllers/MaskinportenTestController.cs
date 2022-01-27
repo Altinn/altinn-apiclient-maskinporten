@@ -36,7 +36,6 @@ namespace SampleWebApp.Controllers
             var result2 = await _myMaskinportenHttpClient.PerformStuff(url);
 
             return "Done!";
-
         }
     }
 }
