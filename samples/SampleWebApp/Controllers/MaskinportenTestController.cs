@@ -25,17 +25,17 @@ namespace SampleWebApp.Controllers
         [HttpGet]
         public async Task<string> Get()
         {
-            // See https://requestbin.com
-            var url = "https://enk2l7xrl5ew.x.pipedream.net";
+            // You can use something like https://requestbin.com to see what headers are sent
+            var url = "https://someurlfromrequestbin";
 
             // Here we instantiate a named client as defined in Startup.cs
-           // var client1 = _clientFactory.CreateClient("myhttpclient");
+            var client1 = _clientFactory.CreateClient("myhttpclient");
             
-            // Perform some requests with them both. 
-           // var result1 = await client1.GetAsync(url);
+            // Perform some requests with both the named client and the type client. This will both use the same token. 
+            var result1 = await client1.GetAsync(url);
             var result2 = await _myMaskinportenHttpClient.PerformStuff(url);
 
-            return "Done, see https://requestbin.com/r/enk2l7xrl5ew";
+            return "Done";
 
         }
     }
