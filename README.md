@@ -1,6 +1,6 @@
 # .NET client for Maskinporten APIs
 
-This .NET client library is used for calling maskinporten and create an access token to be used for services that require an Maskinporten access token. This also supports exchanging Maskinporten tokens into Altinn tokens, as well as enriching tokens with enterprise user credentials.
+This .NET client library is used for calling maskinporten and create an access token to be used for services that require an Maskinporten access token. This also supports exchanging Maskinporten tokens into Altinn tokens, as well as enriching tokens with enterprise user credentials. 
 
 ## Installation
 
@@ -16,8 +16,7 @@ can be injected and used transparently.
 You will need to configure a client definition, which is a way of providing the necessary OAuth2-related settings (client-id, scopes etc) as well as a way of getting 
 the secret (either a X.509 certificate with a private key or a JWK with a private key) used to sign the requests to Maskinporten. 
 
-There are several different client definitions available, or one can provide a custom one if required. See the "SampleWebApp"-project (especially Startup.cs) for examples
-on how this can be done.
+There are several different client definitions available, or one can provide a custom one if required. See the "SampleWebApp"-project (especially Startup.cs) for examples on how this can be done.
 
 1. Client needs to configured in `ConfigureServices`, where `services` is a `IServiceCollection`
 
@@ -103,15 +102,26 @@ This library also supports enriching Maskinporten tokens with enterprise user cr
 "EnterpriseUserPassword": "mysecret",
 ````
 
-**See the "SampleWebApp"-project (especially Startup.cs) for more examples on various client defintions, custom definitions and several clients with different configurations**
+## Custom cache provider (2.x and later)
+
+By default, this library will cache tokens using MemoryCache via `MemoryCacheTokenProvider`, allowing tokens to be reused  as long as they are valid (based on `exp`-claim). If your application has other caching needs, you can provide your own implementation of `ITokenCacheProvider` by registering your implementation as a service before calling `AddMaskinportenHttpClient`.
+
+```c#
+services.AddSingleton<ITokenCacheProvider, FileTokenCacheProvider>();
+```
+
+`FileTokenCacheProvider` is included in the library, which uses a file based cache. 
+
+**See the "SampleWebApp"-project (especially Startup.cs) for more examples on various client defintions, cache providers, custom definitions and several clients with different configurations**
+
 
 ## Manual use of TokenService
 
 1. Client needs to configured in startup
 
 ```c#
-// Maskinporten requires a memory cache implementation
-services.AddSingleton<IMemoryCache, MemoryCache>();
+// Maskinporten requires a cache implementation. Note: for 1.x of this library, use MemoryCache directly
+services.AddSingleton<ITokenCacheProvider, MemoryTokenCacheProvider>();
 
 // We also need at least one HTTP client in order to fetch tokens
 services.AddHttpClient();
@@ -122,31 +132,19 @@ services.AddSingleton<IMaskinportenService, MaskinportenService>();
 
 3. Configure client in constructur for service that need Maskinporten token
 
-4. Call maskinporten API to get the token. Here we use MemoryCache ourselves to cache the token based on its exp-claim.
+4. Call maskinporten API to get the token. 
 
 ```c#
-private async Task<string> GetMaskinPortenAccessToken()
+private async Task<string> GetMaskinportenAccessToken()
 {
     try
     {
         string accessToken = null;
+        string base64encodedJWK = await _secrets.GetSecretAsync("myBase64EncodedJwkWithPrivateKey");
+        TokenResponse accesstokenResponse = await _maskinporten.GetToken(
+            base64encodedJWK, _maskinportenSettings.ClientId, _maskinportenSettings.Scope, null);
 
-        string cacheKey = $"{_maskinportenSettings.ClientId}-{_maskinportenSettings.Scope}";
-
-        if (!_memoryCache.TryGetValue(cacheKey, out accessToken))
-        {
-            string base64encodedJWK = await _secrets.GetSecretAsync("myBase64EncodedJwkWithPrivateKey");
-            TokenResponse accesstokenResponse = await _maskinporten.GetToken(base64encodedJWK, _maskinportenSettings.ClientId, _maskinportenSettings.Scope, null);
-            accessToken = accesstokenResponse.AccessToken;
-            MemoryCacheEntryOptions cacheEntryOptions = new MemoryCacheEntryOptions()
-            {
-                Priority = CacheItemPriority.High,
-            };
-            cacheEntryOptions.SetAbsoluteExpiration(new TimeSpan(0, 0, accesstokenResponse.ExpiresIn - 10));
-            _memoryCache.Set(cacheKey, accessToken, cacheEntryOptions);
-        }
-
-        return accessToken;
+        return accesstokenResponse.AccessToken;
     }
 }
 ```

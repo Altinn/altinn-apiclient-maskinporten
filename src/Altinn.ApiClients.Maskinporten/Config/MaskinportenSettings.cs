@@ -5,17 +5,17 @@ namespace Altinn.ApiClients.Maskinporten.Config
     public class MaskinportenSettings
     {
         /// <summary>
-        /// ClientID if fixed
+        /// ClientID to use
         /// </summary>
         public string ClientId { get; set; }
 
         /// <summary>
-        /// Scope if fixed
+        /// Scopes to request. Must be provisioned on the supplied client.
         /// </summary>
         public string Scope { get; set; }
 
         /// <summary>
-        /// Resource if fixed
+        /// Resource claim for assertion. This will be the `aud`-claim in the received access token
         /// </summary>
         public string Resource { get; set; }
 
