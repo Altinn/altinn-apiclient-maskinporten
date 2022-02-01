@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.Json;
@@ -57,12 +58,112 @@ namespace Altinn.ApiClients.Maskinporten.Services
         public async Task<TokenResponse> GetToken(IClientDefinition clientDefinition, bool disableCaching = false)
         {
             ClientSecrets clientSecrets = await clientDefinition.GetClientSecrets();
+            TokenResponse tokenResponse;
             if (clientSecrets.ClientKey != null)
             {
-                return await GetToken(null, clientSecrets.ClientKey, clientDefinition.ClientSettings.Environment, clientDefinition.ClientSettings.ClientId, clientDefinition.ClientSettings.Scope, clientDefinition.ClientSettings.Resource, disableCaching);
+                tokenResponse = await GetToken(null, clientSecrets.ClientKey, clientDefinition.ClientSettings.Environment, clientDefinition.ClientSettings.ClientId, clientDefinition.ClientSettings.Scope, clientDefinition.ClientSettings.Resource, disableCaching);
+            }
+            else
+            {
+                tokenResponse = await GetToken(clientSecrets.ClientCertificate, null,
+                    clientDefinition.ClientSettings.Environment, clientDefinition.ClientSettings.ClientId,
+                    clientDefinition.ClientSettings.Scope, clientDefinition.ClientSettings.Resource, disableCaching);
             }
 
-            return await GetToken(clientSecrets.ClientCertificate, null, clientDefinition.ClientSettings.Environment, clientDefinition.ClientSettings.ClientId, clientDefinition.ClientSettings.Scope, clientDefinition.ClientSettings.Resource, disableCaching);
+            if (!string.IsNullOrEmpty(clientDefinition.ClientSettings.EnterpriseUserName) &&
+                !string.IsNullOrEmpty(clientDefinition.ClientSettings.EnterpriseUserPassword))
+            {
+                return await ExchangeToAltinnToken(tokenResponse, clientDefinition.ClientSettings.Environment, clientDefinition.ClientSettings.EnterpriseUserName,
+                    clientDefinition.ClientSettings.EnterpriseUserPassword, disableCaching);
+            }
+            
+            if (clientDefinition.ClientSettings.ExhangeToAltinnToken.HasValue &&
+                     clientDefinition.ClientSettings.ExhangeToAltinnToken.Value)
+            {
+                return await ExchangeToAltinnToken(tokenResponse, clientDefinition.ClientSettings.Environment, disableCaching: disableCaching);
+            }
+
+            return tokenResponse;
+        }
+
+        public async Task<TokenResponse> ExchangeToAltinnToken(TokenResponse tokenResponse,
+            string environment, string userName = null, string password = null, bool disableCaching = false)
+        {
+            string cacheKey = GetCacheKeyForTokenAndUsername(tokenResponse, userName ?? string.Empty);
+            await SemaphoreSlim.WaitAsync();
+            TokenResponse exchangedTokenResponse;
+            try
+            {
+                if (disableCaching || !_memoryCache.TryGetValue(cacheKey, out exchangedTokenResponse))
+                {
+                    HttpRequestMessage requestMessage = new HttpRequestMessage()
+                    {
+                        Method = HttpMethod.Get,
+                        RequestUri = new Uri(GetTokenExchangeEndpoint(environment)),
+                        Headers = { Authorization = new AuthenticationHeaderValue("Bearer", tokenResponse.AccessToken) }
+                    };
+
+                    exchangedTokenResponse = new TokenResponse
+                    {
+                        ExpiresIn = tokenResponse.ExpiresIn,
+                        Scope = tokenResponse.Scope,
+                        TokenType = "altinn"
+                    };
+
+                    if (userName != null && password != null)
+                    {
+                        requestMessage.Headers.TryAddWithoutValidation("X-Altinn-EnterpriseUser-Authentication",
+                            Convert.ToBase64String(Encoding.UTF8.GetBytes($"{userName}:{password}")));
+                    }
+
+                    exchangedTokenResponse.AccessToken = await PerformRequest<string>(requestMessage);
+
+                    MemoryCacheEntryOptions cacheEntryOptions = new MemoryCacheEntryOptions()
+                    {
+                        Priority = CacheItemPriority.High,
+                    };
+                    cacheEntryOptions.SetAbsoluteExpiration(new TimeSpan(0, 0, Math.Max(0, exchangedTokenResponse.ExpiresIn - 30)));
+                    _memoryCache.Set(cacheKey, exchangedTokenResponse, cacheEntryOptions);
+                }
+            }
+            finally
+            {
+                SemaphoreSlim.Release();
+            }
+
+            return exchangedTokenResponse;
+        }
+
+        private string GetCacheKeyForTokenAndUsername(TokenResponse tokenResponse, string userName)
+        {
+            MD5 md5 = MD5.Create();
+            return BitConverter.ToString(md5.ComputeHash(Encoding.ASCII.GetBytes(tokenResponse.AccessToken + userName)));
+        }
+
+        private string GetJwtAssertion(X509Certificate2 cert, JsonWebKey jwk, string environment, string clientId, string scope, string resource)
+        {
+            DateTimeOffset dateTimeOffset = new DateTimeOffset(DateTime.UtcNow);
+            JwtHeader header = cert != null ? GetHeader(cert) : GetHeader(jwk);
+
+            JwtPayload payload = new JwtPayload
+            {
+                { "aud", GetAssertionAud(environment) },
+                { "scope", scope },
+                { "iss", clientId },
+                { "exp", dateTimeOffset.ToUnixTimeSeconds() + 10 },
+                { "iat", dateTimeOffset.ToUnixTimeSeconds() },
+                { "jti", Guid.NewGuid().ToString() },
+            };
+
+            if (!string.IsNullOrEmpty(resource))
+            {
+                payload.Add("resource", resource);
+            }
+
+            JwtSecurityToken securityToken = new JwtSecurityToken(header, payload);
+            JwtSecurityTokenHandler handler = new JwtSecurityTokenHandler();
+
+            return handler.WriteToken(securityToken);
         }
 
         private async Task<TokenResponse> GetToken(X509Certificate2 cert, JsonWebKey jwk, string environment, string clientId, string scope, string resource, bool disableCaching)
@@ -76,8 +177,14 @@ namespace Altinn.ApiClients.Maskinporten.Services
                 if (disableCaching || !_memoryCache.TryGetValue(cacheKey, out accesstokenResponse))
                 {
                     string jwtAssertion = GetJwtAssertion(cert, jwk, environment, clientId, scope, resource);
-                    FormUrlEncodedContent content = GetUrlEncodedContent(jwtAssertion);
-                    accesstokenResponse = await PostToken(environment, content);
+                    HttpRequestMessage requestMessage = new HttpRequestMessage()
+                    {
+                        Method = HttpMethod.Post,
+                        RequestUri = new Uri(GetTokenEndpoint(environment)),
+                        Content = GetUrlEncodedContent(jwtAssertion)
+                    };
+
+                    accesstokenResponse = await PerformRequest<TokenResponse>(requestMessage);
 
                     MemoryCacheEntryOptions cacheEntryOptions = new MemoryCacheEntryOptions()
                     {
@@ -93,40 +200,6 @@ namespace Altinn.ApiClients.Maskinporten.Services
             }
 
             return accesstokenResponse;
-        }
-
-        public string GetJwtAssertion(X509Certificate2 cert, JsonWebKey jwk, string environment, string clientId, string scope, string resource)
-        {
-            DateTimeOffset dateTimeOffset = new DateTimeOffset(DateTime.UtcNow);
-            JwtHeader header;
-            if (cert != null)
-            {
-                header = GetHeader(cert);
-            }
-            else
-            {
-                header = GetHeader(jwk);
-            }
-
-            JwtPayload payload = new JwtPayload
-            {
-                { "aud", GetAssertionAud(environment) },
-                { "scope", scope },
-                { "iss", clientId },
-                { "exp", dateTimeOffset.ToUnixTimeSeconds() + 10 },
-                { "iat", dateTimeOffset.ToUnixTimeSeconds() },
-                { "jti", Guid.NewGuid().ToString() },
-            };
-            
-            if (string.IsNullOrEmpty(resource))
-            {
-                payload.Add("resource", resource);
-            }
-
-            JwtSecurityToken securityToken = new JwtSecurityToken(header, payload);
-            JwtSecurityTokenHandler handler = new JwtSecurityTokenHandler();
-
-            return handler.WriteToken(securityToken);
         }
 
         private JwtHeader GetHeader(JsonWebKey jwk)
@@ -158,32 +231,33 @@ namespace Altinn.ApiClients.Maskinporten.Services
             return formContent;
         }
 
-        public async Task<TokenResponse> PostToken(string environment, FormUrlEncodedContent bearer)
+        public async Task<T> PerformRequest<T>(HttpRequestMessage requestMessage)
         {
-            HttpRequestMessage requestMessage = new HttpRequestMessage()
-            {
-                Method = HttpMethod.Post,
-                RequestUri = new Uri(GetTokenEndpoint(environment)),
-                Content = bearer
-            };
-
             HttpResponseMessage response = await _client.SendAsync(requestMessage);
 
             if (response.IsSuccessStatusCode)
             {
                 string successResponse = await response.Content.ReadAsStringAsync();
-                return JsonSerializer.Deserialize<TokenResponse>(successResponse);
+                return JsonSerializer.Deserialize<T>(successResponse);
             }
             
             string errorResponse = await response.Content.ReadAsStringAsync();
-            ErrorReponse error = JsonSerializer.Deserialize<ErrorReponse>(errorResponse) ?? new ErrorReponse()
+            ErrorReponse error;
+            try
             {
-                ErrorType = "deserializing",
-                Description = "Unable to deserialize error from Maskinporten. Received: " +
-                              (string.IsNullOrEmpty(errorResponse) ? "<empty>" : errorResponse)
-            };
+                error = JsonSerializer.Deserialize<ErrorReponse>(errorResponse);
+            }
+            catch (JsonException)
+            {
+                error = new ErrorReponse
+                {
+                    ErrorType = "Other",
+                    Description = "An error occured, received from server: " +
+                                  (string.IsNullOrEmpty(errorResponse) ? "<empty>" : errorResponse)
+                };
+            }
 
-            _logger.LogError("errorType={errorType} description={description} statuscode={statusCode}", error.ErrorType, error.Description, response.StatusCode);
+            _logger.LogError("errorType={errorType} description={description} statuscode={statusCode}", error!.ErrorType, error.Description, response.StatusCode);
             throw new TokenRequestException(error.Description);
         }
 
@@ -205,6 +279,17 @@ namespace Altinn.ApiClients.Maskinporten.Services
                 "prod" => "https://maskinporten.no/token",
                 "ver1" => "https://ver1.maskinporten.no/token",
                 "ver2" => "https://ver2.maskinporten.no/token",
+                _ => throw new ArgumentException("Invalid environment setting. Valid values: prod, ver1, ver2")
+            };
+        }
+
+        private string GetTokenExchangeEndpoint(string environment)
+        {
+            return environment switch
+            {
+                "prod" => "https://platform.altinn.no/authentication/api/v1/exchange/maskinporten",
+                "ver1" => "https://platform.tt02.altinn.no/authentication/api/v1/exchange/maskinporten",
+                "ver2" => "https://platform.tt02.altinn.no/authentication/api/v1/exchange/maskinporten",
                 _ => throw new ArgumentException("Invalid environment setting. Valid values: prod, ver1, ver2")
             };
         }

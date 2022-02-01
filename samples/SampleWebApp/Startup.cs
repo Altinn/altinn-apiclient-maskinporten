@@ -7,6 +7,7 @@ using Altinn.ApiClients.Maskinporten.Config;
 using Altinn.ApiClients.Maskinporten.Handlers;
 using Altinn.ApiClients.Maskinporten.Interfaces;
 using Altinn.ApiClients.Maskinporten.Services;
+using Altinn.ApiClients.Maskinporten.Extensions;
 using Microsoft.Extensions.Caching.Memory;
 using SampleWebApp.Config;
 
@@ -25,6 +26,19 @@ namespace SampleWebApp
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddControllers();
+            
+            // Add a named client
+            services.AddMaskinportenHttpClient<Pkcs12ClientDefinition>(
+                Configuration.GetSection("MyMaskinportenSettingsForCertFile"), 
+                "myhttpclient");
+
+            // ... or a typed client
+            services.AddMaskinportenHttpClient<Pkcs12ClientDefinition, MyMaskinportenHttpClient>(
+                Configuration.GetSection("MyMaskinportenSettingsForCertFile"));
+
+            /*
+
+            // Instead of using the extension methods above, one can use the below more low-level way of wiring dependencies
 
             // Maskinporten requires a memory cache implementation
             services.AddSingleton<IMemoryCache, MemoryCache>();
@@ -64,7 +78,7 @@ namespace SampleWebApp
             // Add a custom client definition for using a custom configuration which will be injected
             services.AddSingleton<Pkcs12ClientDefinition<IMyCustomMaskinportenSettings>>();
 
-            // Add another client definition for exisiting implementation but wuth overridden configuration
+            // Add another client definition for exisiting implementation but with overridden configuration
             services.AddSingleton(_ => new CertificateStoreClientDefinition<IMyCustomMaskinportenSettings>(new MaskinportenSettings()
             {
                 Environment = "prod",
@@ -93,7 +107,9 @@ namespace SampleWebApp
             services.AddHttpClient("client6").AddHttpMessageHandler<MaskinportenTokenHandler<MyCustomClientDefinition>>();
 
             // Add a typed clients
-            services.AddHttpClient<MyHttpClient>().AddHttpMessageHandler<MaskinportenTokenHandler<CertificateStoreClientDefinition<IMyCustomMaskinportenSettings>>>();
+            services.AddHttpClient<MyMaskinportenHttpClient>().AddHttpMessageHandler<MaskinportenTokenHandler<CertificateStoreClientDefinition<IMyCustomMaskinportenSettings>>>();
+
+            */
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)

@@ -1,6 +1,6 @@
 # .NET client for Maskinporten APIs
 
-This .NET client library is used for calling maskinporten and create an access token to be used for services that require an Maskinporten access token
+This .NET client library is used for calling maskinporten and create an access token to be used for services that require an Maskinporten access token. This also supports exchanging Maskinporten tokens into Altinn tokens, as well as enriching tokens with enterprise user credentials.
 
 ## Installation
 
@@ -8,9 +8,9 @@ Install the nuget with `dotnet add package Altinn.ApiClients.Maskinporten` or si
 
 Pre-release versions of this nuget are made available on Github.
 
-## Setup as HttpHandler 
+## Using extension methods to configure a HttpClient 
 
-There are different ways to set this up. For most using the HttpHandler configuration is the most convenient way of using this library, offering a HttpClient that
+There are different ways to set this up. For most using the extensions methods is the most convenient way of using this library, offering a HttpClient that
 can be injected and used transparently.
 
 You will need to configure a client definition, which is a way of providing the necessary OAuth2-related settings (client-id, scopes etc) as well as a way of getting 
@@ -21,28 +21,25 @@ on how this can be done.
 
 1. Client needs to configured in `ConfigureServices`, where `services` is a `IServiceCollection`
 
+Here is an example with a [named client](https://docs.microsoft.com/en-us/dotnet/architecture/microservices/implement-resilient-applications/use-httpclientfactory-to-implement-resilient-http-requests#implement-your-typed-client-classes-that-use-the-injected-and-configured-httpclient) using a client definition where the secret is a  private RSA key in a JWK supplied in the injected settings.
+
 ```c#
-// Maskinporten requires a memory cache implementation
-services.AddSingleton<IMemoryCache, MemoryCache>();
-
-// We also need at least one HTTP client in order to fetch tokens
-services.AddHttpClient();
-
-// We only need a single Maskinporten-service for all Maskinporten-powered clients. This service can be used directly if low level access is required (see below).
-services.AddSingleton<IMaskinportenService, MaskinportenService>();
-
-// Add the configuration needed for the client definition you want to use
-services.Configure<MaskinportenSettings<SettingsJwkClientDefinition>>(Configuration.GetSection("MaskinportenSettings"));
-
-// Add the client definitition you want to use. In this one we have a base64-encoded JWK defined in the settings.
-services.AddSingleton<SettingsJwkClientDefinition>();   
-
-// Add handler for the client definition
-services.AddTransient<MaskinportenTokenHandler<SettingsJwkClientDefinition>>();
-            
-// Add a named (or typed) client
-services.AddHttpClient("myclient").AddHttpMessageHandler<MaskinportenTokenHandler<SettingsJwkClientDefinition>>();
+services.AddMaskinportenHttpClient<SettingsJwkClientDefinition>(
+    Configuration.GetSection("MaskinportenSettings"), 
+    "myhttpclient");
 ```
+Another example using a client definition where the secret is a X509 enterprise certificate placed in a PKCS#12 file on disk.
+```c#
+services.AddMaskinportenHttpClient<Pkcs12ClientDefinition>(
+    Configuration.GetSection("MyMaskinportenSettingsForCertFile"),
+    "myhttpclient");
+```
+You can for all client definitions opt to use a [typed client](https://docs.microsoft.com/en-us/dotnet/architecture/microservices/implement-resilient-applications/use-httpclientfactory-to-implement-resilient-http-requests#implement-your-typed-client-classes-that-use-the-injected-and-configured-httpclient) instead of a named client:
+```c#
+services.AddMaskinportenHttpClient<SettingsJwkClientDefinition, MyMaskinportenHttpClient>(
+    Configuration.GetSection("MaskinportenSettings"));
+```
+
 
 2. Configure Maskinporten environment in appsetting.json
 
@@ -62,22 +59,49 @@ services.AddHttpClient("myclient").AddHttpMessageHandler<MaskinportenTokenHandle
 public class MyController : ControllerBase
 {
     private readonly IHttpClientFactory _clientFactory;
+    private readonly MyMaskinportenHttpClient _myMaskinportenHttpClient;
 
-    public MyController(IHttpClientFactory clientFactory)
+    public MyController(
+        IHttpClientFactory clientFactory, MyMaskinportenHttpClient myMaskinportenHttpClient)
      {
         _clientFactory = clientFactory;
+        _myMaskinportenHttpClient = myMaskinportenHttpClient;
      }
 
     [HttpGet]
     public async Task<string> Get()
     {
-       var myclient = _clientFactory.CreateClient("myclient");
-       
+       // Here we use the named client we configured earlier
+       var myclient = _clientFactory.CreateClient("myhttpclient");
+
        // This request will be sent with a Authorization-header containing a bearer token
        var result = await client.GetAsync("https://example.com/");
+
+       // Or we can use the typed client we made instead. Any
+       // requests made to the HttpClient instance injected weill have a bearer token.
+       _myMaskinportenHttpClient.DoStuff();
     }
 }
 ```
+
+## Using Altinn token exchange
+
+If you require a [Altinn Exchanged token](https://docs.altinn.studio/altinn-api/authentication/#maskinporten-jwt-access-token-input), this can be performed transparently by
+supplying the following field to the settings object.
+
+```json
+"ExhangeToAltinnToken": true
+````
+This will transparently exchange (and cache) the Maskinporten-token into an Altinn-token which can be used against Altinn APIs.
+
+## Authenticating with a enterprise user
+
+This library also supports enriching Maskinporten tokens with enterprise user credentials for APIs requiring user roles/rights. In order to do this, you will need to add the following fields to the configuration, containing the enterpriseuser's username and password.
+
+```json
+"EnterpriseUserName": "myenterpriseuser",
+"EnterpriseUserPassword": "mysecret",
+````
 
 **See the "SampleWebApp"-project (especially Startup.cs) for more examples on various client defintions, custom definitions and several clients with different configurations**
 
