@@ -55,7 +55,7 @@ namespace Altinn.ApiClients.Maskinporten.Config
         public string EnterpriseUserPassword { get; set; }
 
         /// <summary>
-        /// Optional. Enables Altinn token exchange without enterprise user authentication. Ignored if EnterpriseUserName/Password is supplied (which imples token exchange).
+        /// Optional. Enables Altinn token exchange without enterprise user authentication. Ignored if EnterpriseUserName/Password is supplied (which implies token exchange).
         /// </summary>
         public bool? ExhangeToAltinnToken { get; set; }
     }
