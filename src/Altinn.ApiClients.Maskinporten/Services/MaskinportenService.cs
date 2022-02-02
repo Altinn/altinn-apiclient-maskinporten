@@ -80,6 +80,15 @@ namespace Altinn.ApiClients.Maskinporten.Services
             if (clientDefinition.ClientSettings.ExhangeToAltinnToken.HasValue &&
                      clientDefinition.ClientSettings.ExhangeToAltinnToken.Value)
             {
+                if(clientDefinition.ClientSettings.UseAltinnTestOrg.HasValue)
+                {
+                    return await ExchangeToAltinnToken(                        
+                        tokenResponse, 
+                        clientDefinition.ClientSettings.Environment, 
+                        disableCaching: disableCaching, 
+                        isTestOrg: clientDefinition.ClientSettings.UseAltinnTestOrg.Value);
+                }
+
                 return await ExchangeToAltinnToken(tokenResponse, clientDefinition.ClientSettings.Environment, disableCaching: disableCaching);
             }
 
@@ -87,7 +96,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
         }
 
         public async Task<TokenResponse> ExchangeToAltinnToken(TokenResponse tokenResponse,
-            string environment, string userName = null, string password = null, bool disableCaching = false)
+            string environment, string userName = null, string password = null, bool disableCaching = false, bool isTestOrg = false)
         {
             string cacheKey = GetCacheKeyForTokenAndUsername(tokenResponse, userName ?? string.Empty);
             await SemaphoreSlim.WaitAsync();
@@ -102,6 +111,11 @@ namespace Altinn.ApiClients.Maskinporten.Services
                         RequestUri = new Uri(GetTokenExchangeEndpoint(environment)),
                         Headers = { Authorization = new AuthenticationHeaderValue("Bearer", tokenResponse.AccessToken) }
                     };
+
+                    if (isTestOrg)
+                    {
+                        requestMessage.RequestUri = new Uri(requestMessage.RequestUri + "?test=true");
+                    }
 
                     exchangedTokenResponse = new TokenResponse
                     {
