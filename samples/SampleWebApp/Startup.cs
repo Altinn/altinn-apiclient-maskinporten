@@ -1,3 +1,4 @@
+using System.IO;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -26,7 +27,18 @@ namespace SampleWebApp
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddControllers();
-            
+
+            // Explicitly add a file based token cache store. You could add your own by implementing ITokenCacheProvider.
+            // This will place a file called ".maskinportenTokenCache.json" in the users temp-folder. This will NOT be deleted
+            // after application termination. This makes it suitable for CLI usage.
+            // 
+            // If no token cache store is added before the first AddMaskinportenHttpClient-call, a MemoryCache-based cache store
+            // will be used.
+
+            services.AddSingleton<ITokenCacheProvider, FileTokenCacheProvider>();
+            // Alternatively, one can supply a file path. This will be created or overwritten.
+            // services.AddSingleton<ITokenCacheProvider>(new FileTokenCacheProvider("c:/temp/mycachestore.json"));
+
             // Add a named client
             services.AddMaskinportenHttpClient<Pkcs12ClientDefinition>(
                 Configuration.GetSection("MyMaskinportenSettingsForCertFile"), 

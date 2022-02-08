@@ -1,5 +1,4 @@
 ﻿using Altinn.ApiClients.Maskinporten.Models;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using System;
@@ -17,24 +16,24 @@ using Altinn.ApiClients.Maskinporten.Interfaces;
 
 namespace Altinn.ApiClients.Maskinporten.Services
 {
-    public class MaskinportenService: IMaskinportenService
+    public class MaskinportenService : IMaskinportenService
     {
         private readonly HttpClient _client;
 
         private readonly ILogger _logger;
 
-        private readonly IMemoryCache _memoryCache;
+        private readonly ITokenCacheProvider _tokenCacheProvider;
 
         private static readonly SemaphoreSlim SemaphoreSlim = new SemaphoreSlim(1, 1);
 
-        public MaskinportenService(HttpClient httpClient, 
+        public MaskinportenService(HttpClient httpClient,
             ILogger<IMaskinportenService> logger,
-            IMemoryCache memoryCache)
+            ITokenCacheProvider tokenCacheProvider)
         {
             httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             _client = httpClient;
             _logger = logger;
-            _memoryCache = memoryCache;
+            _tokenCacheProvider = tokenCacheProvider;
         }
 
         public async Task<TokenResponse> GetToken(X509Certificate2 cert, string environment, string clientId, string scope, string resource, bool disableCaching = false)
@@ -76,16 +75,16 @@ namespace Altinn.ApiClients.Maskinporten.Services
                 return await ExchangeToAltinnToken(tokenResponse, clientDefinition.ClientSettings.Environment, clientDefinition.ClientSettings.EnterpriseUserName,
                     clientDefinition.ClientSettings.EnterpriseUserPassword, disableCaching);
             }
-            
+
             if (clientDefinition.ClientSettings.ExhangeToAltinnToken.HasValue &&
                      clientDefinition.ClientSettings.ExhangeToAltinnToken.Value)
             {
-                if(clientDefinition.ClientSettings.UseAltinnTestOrg.HasValue)
+                if (clientDefinition.ClientSettings.UseAltinnTestOrg.HasValue)
                 {
-                    return await ExchangeToAltinnToken(                        
-                        tokenResponse, 
-                        clientDefinition.ClientSettings.Environment, 
-                        disableCaching: disableCaching, 
+                    return await ExchangeToAltinnToken(
+                        tokenResponse,
+                        clientDefinition.ClientSettings.Environment,
+                        disableCaching: disableCaching,
                         isTestOrg: clientDefinition.ClientSettings.UseAltinnTestOrg.Value);
                 }
 
@@ -95,63 +94,68 @@ namespace Altinn.ApiClients.Maskinporten.Services
             return tokenResponse;
         }
 
-        public async Task<TokenResponse> ExchangeToAltinnToken(TokenResponse tokenResponse,
-            string environment, string userName = null, string password = null, bool disableCaching = false, bool isTestOrg = false)
+        public async Task<TokenResponse> ExchangeToAltinnToken(
+                TokenResponse tokenResponse,
+                string environment,
+                string userName = null,
+                string password = null,
+                bool disableCaching = false,
+                bool isTestOrg = false)
         {
             string cacheKey = GetCacheKeyForTokenAndUsername(tokenResponse, userName ?? string.Empty);
             await SemaphoreSlim.WaitAsync();
-            TokenResponse exchangedTokenResponse;
             try
             {
-                if (disableCaching || !_memoryCache.TryGetValue(cacheKey, out exchangedTokenResponse))
+                if (!disableCaching)
                 {
-                    HttpRequestMessage requestMessage = new HttpRequestMessage()
+                    (bool hasCachedValue, TokenResponse cachedTokenResponse) = await _tokenCacheProvider.TryGetToken(cacheKey);
+                    if (hasCachedValue)
                     {
-                        Method = HttpMethod.Get,
-                        RequestUri = new Uri(GetTokenExchangeEndpoint(environment)),
-                        Headers = { Authorization = new AuthenticationHeaderValue("Bearer", tokenResponse.AccessToken) }
-                    };
-
-                    if (isTestOrg)
-                    {
-                        requestMessage.RequestUri = new Uri(requestMessage.RequestUri + "?test=true");
+                        return cachedTokenResponse;
                     }
-
-                    exchangedTokenResponse = new TokenResponse
-                    {
-                        ExpiresIn = tokenResponse.ExpiresIn,
-                        Scope = tokenResponse.Scope,
-                        TokenType = "altinn"
-                    };
-
-                    if (userName != null && password != null)
-                    {
-                        requestMessage.Headers.TryAddWithoutValidation("X-Altinn-EnterpriseUser-Authentication",
-                            Convert.ToBase64String(Encoding.UTF8.GetBytes($"{userName}:{password}")));
-                    }
-
-                    exchangedTokenResponse.AccessToken = await PerformRequest<string>(requestMessage);
-
-                    MemoryCacheEntryOptions cacheEntryOptions = new MemoryCacheEntryOptions()
-                    {
-                        Priority = CacheItemPriority.High,
-                    };
-                    cacheEntryOptions.SetAbsoluteExpiration(new TimeSpan(0, 0, Math.Max(0, exchangedTokenResponse.ExpiresIn - 30)));
-                    _memoryCache.Set(cacheKey, exchangedTokenResponse, cacheEntryOptions);
                 }
+
+                HttpRequestMessage requestMessage = new HttpRequestMessage()
+                {
+                    Method = HttpMethod.Get,
+                    RequestUri = new Uri(GetTokenExchangeEndpoint(environment)),
+                    Headers = { Authorization = new AuthenticationHeaderValue("Bearer", tokenResponse.AccessToken) }
+                };
+
+                if (isTestOrg)
+                {
+                    requestMessage.RequestUri = new Uri(requestMessage.RequestUri + "?test=true");
+                }
+
+                TokenResponse exchangedTokenResponse = new TokenResponse
+                {
+                    ExpiresIn = tokenResponse.ExpiresIn,
+                    Scope = tokenResponse.Scope,
+                    TokenType = "altinn"
+                };
+
+                if (userName != null && password != null)
+                {
+                    requestMessage.Headers.TryAddWithoutValidation("X-Altinn-EnterpriseUser-Authentication",
+                        Convert.ToBase64String(Encoding.UTF8.GetBytes($"{userName}:{password}")));
+                }
+
+                exchangedTokenResponse.AccessToken = await PerformRequest<string>(requestMessage);
+                await _tokenCacheProvider.Set(cacheKey, exchangedTokenResponse,
+                   new TimeSpan(0, 0, Math.Max(0, exchangedTokenResponse.ExpiresIn - 5)));
+
+                return exchangedTokenResponse;
             }
             finally
             {
                 SemaphoreSlim.Release();
             }
-
-            return exchangedTokenResponse;
         }
 
         private string GetCacheKeyForTokenAndUsername(TokenResponse tokenResponse, string userName)
         {
             MD5 md5 = MD5.Create();
-            return BitConverter.ToString(md5.ComputeHash(Encoding.ASCII.GetBytes(tokenResponse.AccessToken + userName)));
+            return BitConverter.ToString(md5.ComputeHash(Encoding.UTF8.GetBytes(tokenResponse.AccessToken + userName)));
         }
 
         private string GetJwtAssertion(X509Certificate2 cert, JsonWebKey jwk, string environment, string clientId, string scope, string resource)
@@ -183,37 +187,36 @@ namespace Altinn.ApiClients.Maskinporten.Services
         private async Task<TokenResponse> GetToken(X509Certificate2 cert, JsonWebKey jwk, string environment, string clientId, string scope, string resource, bool disableCaching)
         {
             string cacheKey = $"{clientId}-{scope}-{resource}";
-            TokenResponse accesstokenResponse;
 
             await SemaphoreSlim.WaitAsync();
             try
             {
-                if (disableCaching || !_memoryCache.TryGetValue(cacheKey, out accesstokenResponse))
+                if (!disableCaching)
                 {
-                    string jwtAssertion = GetJwtAssertion(cert, jwk, environment, clientId, scope, resource);
-                    HttpRequestMessage requestMessage = new HttpRequestMessage()
+                    (bool hasCachedValue, TokenResponse cachedTokenResponse) = await _tokenCacheProvider.TryGetToken(cacheKey);
+                    if (hasCachedValue)
                     {
-                        Method = HttpMethod.Post,
-                        RequestUri = new Uri(GetTokenEndpoint(environment)),
-                        Content = GetUrlEncodedContent(jwtAssertion)
-                    };
-
-                    accesstokenResponse = await PerformRequest<TokenResponse>(requestMessage);
-
-                    MemoryCacheEntryOptions cacheEntryOptions = new MemoryCacheEntryOptions()
-                    {
-                        Priority = CacheItemPriority.High,
-                    };
-                    cacheEntryOptions.SetAbsoluteExpiration(new TimeSpan(0, 0, Math.Max(0, accesstokenResponse.ExpiresIn - 30)));
-                    _memoryCache.Set(cacheKey, accesstokenResponse, cacheEntryOptions);
+                        return cachedTokenResponse;
+                    }
                 }
+
+                string jwtAssertion = GetJwtAssertion(cert, jwk, environment, clientId, scope, resource);
+                HttpRequestMessage requestMessage = new HttpRequestMessage()
+                {
+                    Method = HttpMethod.Post,
+                    RequestUri = new Uri(GetTokenEndpoint(environment)),
+                    Content = GetUrlEncodedContent(jwtAssertion)
+                };
+
+                TokenResponse accesstokenResponse = await PerformRequest<TokenResponse>(requestMessage);
+                await _tokenCacheProvider.Set(cacheKey, accesstokenResponse,
+                    new TimeSpan(0, 0, Math.Max(0, accesstokenResponse.ExpiresIn - 5)));
+                return accesstokenResponse;
             }
             finally
             {
                 SemaphoreSlim.Release();
             }
-
-            return accesstokenResponse;
         }
 
         private JwtHeader GetHeader(JsonWebKey jwk)
@@ -254,7 +257,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
                 string successResponse = await response.Content.ReadAsStringAsync();
                 return JsonSerializer.Deserialize<T>(successResponse);
             }
-            
+
             string errorResponse = await response.Content.ReadAsStringAsync();
             ErrorReponse error;
             try

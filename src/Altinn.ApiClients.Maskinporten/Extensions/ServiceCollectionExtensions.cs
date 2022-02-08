@@ -1,8 +1,8 @@
-﻿using Altinn.ApiClients.Maskinporten.Config;
+﻿using System.Linq;
+using Altinn.ApiClients.Maskinporten.Config;
 using Altinn.ApiClients.Maskinporten.Handlers;
 using Altinn.ApiClients.Maskinporten.Interfaces;
 using Altinn.ApiClients.Maskinporten.Services;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -38,11 +38,12 @@ namespace Altinn.ApiClients.Maskinporten.Extensions
         private static void AddMaskinportenClientCommon<T>(IServiceCollection services, IConfiguration config)
             where T : class, IClientDefinition
         {
-            // Maskinporten requires a memory cache implementation
-            services.TryAddSingleton<IMemoryCache, MemoryCache>();
-
-            // We also need at least one HTTP client in order to fetch tokens
-            //            services.AddHttpClient();
+            // We need a provider to cache tokens. If one is not already provided by the user, use MemoryTokenCacheProvider
+            if (services.All(x => x.ServiceType != typeof(ITokenCacheProvider)))
+            {
+                services.AddMemoryCache();
+                services.TryAddSingleton<ITokenCacheProvider, MemoryTokenCacheProvider>();
+            }
 
             // We only need a single Maskinporten-service for all clients. This can be used directly if low level access is required.
             services.TryAddSingleton<IMaskinportenService, MaskinportenService>();

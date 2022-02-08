@@ -35,8 +35,7 @@ namespace SampleWebApp.Controllers
             var result1 = await client1.GetAsync(url);
             var result2 = await _myMaskinportenHttpClient.PerformStuff(url);
 
-            return "Done";
-
+            return "Done!";
         }
     }
 }
