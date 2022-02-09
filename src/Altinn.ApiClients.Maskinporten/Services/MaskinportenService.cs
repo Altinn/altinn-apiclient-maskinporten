@@ -16,7 +16,7 @@ using Altinn.ApiClients.Maskinporten.Interfaces;
 
 namespace Altinn.ApiClients.Maskinporten.Services
 {
-    public class MaskinportenService: IMaskinportenService
+    public class MaskinportenService : IMaskinportenService
     {
         private readonly HttpClient _client;
 
@@ -26,7 +26,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
 
         private static readonly SemaphoreSlim SemaphoreSlim = new SemaphoreSlim(1, 1);
 
-        public MaskinportenService(HttpClient httpClient, 
+        public MaskinportenService(HttpClient httpClient,
             ILogger<IMaskinportenService> logger,
             ITokenCacheProvider tokenCacheProvider)
         {
@@ -75,18 +75,32 @@ namespace Altinn.ApiClients.Maskinporten.Services
                 return await ExchangeToAltinnToken(tokenResponse, clientDefinition.ClientSettings.Environment, clientDefinition.ClientSettings.EnterpriseUserName,
                     clientDefinition.ClientSettings.EnterpriseUserPassword, disableCaching);
             }
-            
+
             if (clientDefinition.ClientSettings.ExhangeToAltinnToken.HasValue &&
                      clientDefinition.ClientSettings.ExhangeToAltinnToken.Value)
             {
+                if (clientDefinition.ClientSettings.UseAltinnTestOrg.HasValue)
+                {
+                    return await ExchangeToAltinnToken(
+                        tokenResponse,
+                        clientDefinition.ClientSettings.Environment,
+                        disableCaching: disableCaching,
+                        isTestOrg: clientDefinition.ClientSettings.UseAltinnTestOrg.Value);
+                }
+
                 return await ExchangeToAltinnToken(tokenResponse, clientDefinition.ClientSettings.Environment, disableCaching: disableCaching);
             }
 
             return tokenResponse;
         }
 
-        public async Task<TokenResponse> ExchangeToAltinnToken(TokenResponse tokenResponse,
-            string environment, string userName = null, string password = null, bool disableCaching = false)
+        public async Task<TokenResponse> ExchangeToAltinnToken(
+                TokenResponse tokenResponse,
+                string environment,
+                string userName = null,
+                string password = null,
+                bool disableCaching = false,
+                bool isTestOrg = false)
         {
             string cacheKey = GetCacheKeyForTokenAndUsername(tokenResponse, userName ?? string.Empty);
             await SemaphoreSlim.WaitAsync();
@@ -107,6 +121,11 @@ namespace Altinn.ApiClients.Maskinporten.Services
                     RequestUri = new Uri(GetTokenExchangeEndpoint(environment)),
                     Headers = { Authorization = new AuthenticationHeaderValue("Bearer", tokenResponse.AccessToken) }
                 };
+
+                if (isTestOrg)
+                {
+                    requestMessage.RequestUri = new Uri(requestMessage.RequestUri + "?test=true");
+                }
 
                 TokenResponse exchangedTokenResponse = new TokenResponse
                 {
@@ -238,7 +257,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
                 string successResponse = await response.Content.ReadAsStringAsync();
                 return JsonSerializer.Deserialize<T>(successResponse);
             }
-            
+
             string errorResponse = await response.Content.ReadAsStringAsync();
             ErrorReponse error;
             try

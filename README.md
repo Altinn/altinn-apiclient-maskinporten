@@ -8,13 +8,13 @@ Install the nuget with `dotnet add package Altinn.ApiClients.Maskinporten` or si
 
 Pre-release versions of this nuget are made available on Github.
 
-## Using extension methods to configure a HttpClient 
+## Using extension methods to configure a HttpClient
 
 There are different ways to set this up. For most using the extensions methods is the most convenient way of using this library, offering a HttpClient that
 can be injected and used transparently.
 
-You will need to configure a client definition, which is a way of providing the necessary OAuth2-related settings (client-id, scopes etc) as well as a way of getting 
-the secret (either a X.509 certificate with a private key or a JWK with a private key) used to sign the requests to Maskinporten. 
+You will need to configure a client definition, which is a way of providing the necessary OAuth2-related settings (client-id, scopes etc) as well as a way of getting
+the secret (either a X.509 certificate with a private key or a JWK with a private key) used to sign the requests to Maskinporten.
 
 There are several different client definitions available, or one can provide a custom one if required. See the "SampleWebApp"-project (especially Startup.cs) for examples on how this can be done.
 
@@ -24,7 +24,7 @@ Here is an example with a [named client](https://docs.microsoft.com/en-us/dotnet
 
 ```c#
 services.AddMaskinportenHttpClient<SettingsJwkClientDefinition>(
-    Configuration.GetSection("MaskinportenSettings"), 
+    Configuration.GetSection("MaskinportenSettings"),
     "myhttpclient");
 ```
 Another example using a client definition where the secret is a X509 enterprise certificate placed in a PKCS#12 file on disk.
@@ -85,13 +85,19 @@ public class MyController : ControllerBase
 
 ## Using Altinn token exchange
 
-If you require a [Altinn Exchanged token](https://docs.altinn.studio/altinn-api/authentication/#maskinporten-jwt-access-token-input), this can be performed transparently by
+If you require an [Altinn Exchanged token](https://docs.altinn.studio/altinn-api/authentication/#maskinporten-jwt-access-token-input), this can be performed transparently by
 supplying the following field to the settings object.
 
 ```json
 "ExhangeToAltinnToken": true
 ````
 This will transparently exchange (and cache) the Maskinporten-token into an Altinn-token which can be used against Altinn APIs.
+
+If you require an Altinn Exchanged token for the TTD organisation, this is supported by including the field below in the settings.
+
+```json
+"UseAltinnTestOrg": true
+```
 
 ## Authenticating with a enterprise user
 

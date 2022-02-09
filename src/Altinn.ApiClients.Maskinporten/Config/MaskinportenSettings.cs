@@ -58,6 +58,11 @@ namespace Altinn.ApiClients.Maskinporten.Config
         /// Optional. Enables Altinn token exchange without enterprise user authentication. Ignored if EnterpriseUserName/Password is supplied (which implies token exchange).
         /// </summary>
         public bool? ExhangeToAltinnToken { get; set; }
+
+        /// <summary>
+        /// Optional. Enables the DigDir token to be exchanged into a Altinn token for the test organisation.
+        /// </summary>
+        public bool? UseAltinnTestOrg { get; set; }
     }
 
     public class MaskinportenSettings<T> : MaskinportenSettings where T : IClientDefinition { }
