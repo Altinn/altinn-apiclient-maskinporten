@@ -33,7 +33,7 @@ services.AddMaskinportenHttpClient<SettingsJwkClientDefinition, MyMaskinportenHt
 ```
 2. Configure Maskinporten environment in appsetting.json
 
-```json
+```jsonc
 
   // Settings from appsettings.json, environment variables or other configuration providers.
   // The first three are always mandatory for all client definitions types
@@ -104,9 +104,9 @@ Below are usage examples. Note that configuration binding (ie. `Configuration.Ge
 services.AddMaskinportenHttpClient<SettingsJwkClientDefinition>( ... )
 ```
 
-```json
+```jsonc
   "MaskinportenSettings": {
-    ...
+    // ...
     "EncodedJwk": "eyJwIjoiMms2RlZMRW9iV..."
   }
 ```
@@ -117,9 +117,9 @@ services.AddMaskinportenHttpClient<SettingsJwkClientDefinition>( ... )
 services.AddMaskinportenHttpClient<SettingsX509ClientDefinition>( ... )
 ```
 
-```json
+```jsonc
   "MaskinportenSettings": {
-    ...
+    // ...
     "EncodedX509": "MIIwIjoiMms2RlZMRW9i..."
   }
 ```
@@ -130,9 +130,9 @@ services.AddMaskinportenHttpClient<SettingsX509ClientDefinition>( ... )
 services.AddMaskinportenHttpClient<Pkcs12ClientDefinition>( ... )
 ```
 
-```json
+```jsonc
   "MaskinportenSettings": {
-    ...
+    // ...
     "CertificatePkcs12Path": "Certs/mycert.p12",
     "CertificatePkcs12Password": "mysecretpassword",
   }
@@ -144,9 +144,9 @@ services.AddMaskinportenHttpClient<Pkcs12ClientDefinition>( ... )
 services.AddMaskinportenHttpClient<Pkcs12ClientDefinition>( ... )
 ```
 
-```json
+```jsonc
   "MaskinportenSettings": {
-    ...
+    // ...
     "CertificateStoreThumbprint": "4325B22433984608AB5049103837F11C6BCA520D",
   }
 ```
@@ -158,18 +158,18 @@ JWKs or certificates can be injected into application settings for Azure App Ser
 
 Given that your applications managed identity has access to the key vault containing the secret/cert, you can specify the appsetting value like this:
 
-```json
+```jsonc
 "MaskinportenSettings": {
-    ...
-    "EncodedJwk": "{@Microsoft.KeyVault(VaultName=myvault;SecretName=mysecretjwk)"
+    // ...
+    "EncodedJwk": "@Microsoft.KeyVault(VaultName=myvault;SecretName=mysecretjwk)"
   }
 ```
 or for certificates:
 
-```json
+```jsonc
 "MaskinportenSettings": {
-    ...
-    "EncodedX509": "{@Microsoft.KeyVault(VaultName=myvault;SecretName=mycertificate)"
+    // ...
+    "EncodedX509": "@Microsoft.KeyVault(VaultName=myvault;SecretName=mycertificate)"
   }
 ```
 
