@@ -8,45 +8,48 @@ Install the nuget with `dotnet add package Altinn.ApiClients.Maskinporten` or si
 
 Pre-release versions of this nuget are made available on Github.
 
-## Using extension methods to configure a HttpClient
+## Basic usage
 
-There are different ways to set this up. For most using the extensions methods is the most convenient way of using this library, offering a HttpClient that
-can be injected and used transparently.
+For most scenarios utilizing the  extensions methods provided is the most convenient way of using this library, offering a HttpClient that can be injected and used transparently.
 
-You will need to configure a client definition, which is a way of providing the necessary OAuth2-related settings (client-id, scopes etc) as well as a way of getting
-the secret (either a X.509 certificate with a private key or a JWK with a private key) used to sign the requests to Maskinporten.
+You will need to configure a client definition, which is a way of providing the necessary OAuth2-related settings (client-id, scopes etc) as well as a way of getting the secret (either a X.509 certificate with a private key or a JWK with a private key) used to sign the requests to Maskinporten.
 
-There are several different client definitions available, or one can provide a custom one if required. See the "SampleWebApp"-project (especially Startup.cs) for examples on how this can be done.
+> Note: There are several different client definition types built-in that can be used for aquiring secrets from various, or one can provide a custom one if required. It is also possible to create several named/typed clients using different combinations of settings and definition types. See below for a list of builtin client definitions, and the "SampleWebApp"-project (especially Startup.cs) for examples on how this can be done and extended with your own custom definitions if required.
+
+Here is an example with a both a [named](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/http-requests?view=aspnetcore-6.0#named-clients) and [typed](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/http-requests?view=aspnetcore-6.0#typed-clients) client using a client definition where the secret is a private RSA key in a JWK supplied in the injected settings.
 
 1. Client needs to configured in `ConfigureServices`, where `services` is a `IServiceCollection`
 
-Here is an example with a [named client](https://docs.microsoft.com/en-us/dotnet/architecture/microservices/implement-resilient-applications/use-httpclientfactory-to-implement-resilient-http-requests#implement-your-typed-client-classes-that-use-the-injected-and-configured-httpclient) using a client definition where the secret is a  private RSA key in a JWK supplied in the injected settings.
-
 ```c#
+// Named client
 services.AddMaskinportenHttpClient<SettingsJwkClientDefinition>(
     Configuration.GetSection("MaskinportenSettings"),
     "myhttpclient");
-```
-Another example using a client definition where the secret is a X509 enterprise certificate placed in a PKCS#12 file on disk.
-```c#
-services.AddMaskinportenHttpClient<Pkcs12ClientDefinition>(
-    Configuration.GetSection("MyMaskinportenSettingsForCertFile"),
-    "myhttpclient");
-```
-You can for all client definitions opt to use a [typed client](https://docs.microsoft.com/en-us/dotnet/architecture/microservices/implement-resilient-applications/use-httpclientfactory-to-implement-resilient-http-requests#implement-your-typed-client-classes-that-use-the-injected-and-configured-httpclient) instead of a named client:
-```c#
+
+// Typed client (MyMaskinportenHttpClient is any class accepting a HttpClient paramter in its constructor)
 services.AddMaskinportenHttpClient<SettingsJwkClientDefinition, MyMaskinportenHttpClient>(
-    Configuration.GetSection("MaskinportenSettings"));
+    Configuration.GetSection("MaskinportenSettings")); 
+
 ```
-
-
 2. Configure Maskinporten environment in appsetting.json
 
 ```json
+
+  // Settings from appsettings.json, environment variables or other configuration providers.
+  // The first three are always mandatory for all client definitions types
   "MaskinportenSettings": {
-    "Environment": "ver2",
-    "ClientId": "e15abbbc-36ad-4300-abe9-021c9a245e20",
-    "Scope": "altinn:serviceowner/readaltinn",
+    // 1. Valid values are ver1, ver2 and prod
+    "Environment": "ver2", 
+
+    // 2. Client Id/integration as configured in Maskinporten
+    "ClientId": "e15abbbc-36ad-4300-abe9-021c9a245e20", 
+    
+    // 3. Scope(s) requested, space seperated. Must be provisioned on supplied client id.
+    "Scope": "altinn:serviceowner/readaltinn", 
+
+    // --------------------------
+    // Any additional settings are specific for the selected client definition type. 
+    // See below for examples using other types.
     "EncodedJwk": "eyJwIjoiMms2RlZMRW9iVVY0dmpjRjRCVWNLOUhasdfasdfarhgawfN2YXE5eE95a3NyS1Q345435S19oNV45645635423545t45t54wrgsdfgsfdgsfd444aefasdf5NzdFcWhGTGtaSVAzSmhZTlA0MEZOc1EifQ=="
   }
 ```
@@ -77,11 +80,100 @@ public class MyController : ControllerBase
        var result = await client.GetAsync("https://example.com/");
 
        // Or we can use the typed client we made instead. Any
-       // requests made to the HttpClient instance injected weill have a bearer token.
+       // requests made to the HttpClient instance injected will have a bearer token.
        _myMaskinportenHttpClient.DoStuff();
     }
 }
 ```
+## Built-in client definitions
+
+| Name             | Description
+| -----------------| -------------
+| SettingsJwk      | Uses a Base64-encoded RSA keypair in a JWK supplied in injected settings
+| SettingsX509     | Uses a Base64-encoded X.509 certificate with a private key supplied in injected settings
+| Pkcs12           | Uses a password-protected PKCS#12 formatted certificate file on disk
+| CertificateStore | Uses a thumbprint in Windows Certificate Store (LocalMachine\My)
+
+<details><summary>See examples using the various client definition types</summary>
+
+Below are usage examples. Note that configuration binding (ie. `Configuration.GetSection("somesection")`) is omitted, as are the three mandatory settings that must always be supplied (Environment, ClientId, Scope)
+
+### SettingsJwk
+
+```c#
+services.AddMaskinportenHttpClient<SettingsJwkClientDefinition>( ... )
+```
+
+```json
+  "MaskinportenSettings": {
+    ...
+    "EncodedJwk": "eyJwIjoiMms2RlZMRW9iV..."
+  }
+```
+
+### SettingsX509
+
+```c#
+services.AddMaskinportenHttpClient<SettingsX509ClientDefinition>( ... )
+```
+
+```json
+  "MaskinportenSettings": {
+    ...
+    "EncodedX509": "MIIwIjoiMms2RlZMRW9i..."
+  }
+```
+
+### Pkcs12
+
+```c#
+services.AddMaskinportenHttpClient<Pkcs12ClientDefinition>( ... )
+```
+
+```json
+  "MaskinportenSettings": {
+    ...
+    "CertificatePkcs12Path": "Certs/mycert.p12",
+    "CertificatePkcs12Password": "mysecretpassword",
+  }
+```
+
+### CertificateStore
+
+```c#
+services.AddMaskinportenHttpClient<Pkcs12ClientDefinition>( ... )
+```
+
+```json
+  "MaskinportenSettings": {
+    ...
+    "CertificateStoreThumbprint": "4325B22433984608AB5049103837F11C6BCA520D",
+  }
+```
+</details>
+
+## Using with Azure Keyvault as configuration provider i Azure App Services
+
+JWKs or certificates can be injected into application settings for Azure App Services or Azure Functions using [key vault references](https://docs.microsoft.com/en-us/azure/app-service/app-service-key-vault-references?tabs=azure-cli). This can then be easily used with the `SettingsJwk` or `SettingsX509` client definitions.
+
+Given that your applications managed identity has access to the key vault containing the secret/cert, you can specify the appsetting value like this:
+
+```json
+"MaskinportenSettings": {
+    ...
+    "EncodedJwk": "{@Microsoft.KeyVault(VaultName=myvault;SecretName=mysecretjwk)"
+  }
+```
+or for certificates:
+
+```json
+"MaskinportenSettings": {
+    ...
+    "EncodedX509": "{@Microsoft.KeyVault(VaultName=myvault;SecretName=mycertificate)"
+  }
+```
+
+
 
 ## Using Altinn token exchange
 

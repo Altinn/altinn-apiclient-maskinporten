@@ -45,6 +45,11 @@ namespace Altinn.ApiClients.Maskinporten.Config
         public string EncodedJwk { get; set; }
 
         /// <summary>
+        /// Base64 Encoded X509 certificate with private key 
+        /// </summary>
+        public string EncodedX509 { get; set; }
+
+        /// <summary>
         /// Optional enterprise username for token enrichment
         /// </summary>
         public string EnterpriseUserName { get; set; }

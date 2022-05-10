@@ -65,7 +65,7 @@ namespace SampleWebApp
             // definition consists of two things; Maskinporten-related settings (environment, client_id, scopes and optionally resource) and a way to aquire the secret
             // required to sign the request (either a X509 certificate or a JWK containing a custom keypair)
             //
-            // This library supports several ways of aquiring secrets, and a mechanism to provide your own if needed (for instance to Azure Keyvault). These will 
+            // This library supports several ways of aquiring secrets, and a mechanism to provide your own if needed. These will 
             // require settings to be loaded in a MaskinportenSettings<T> where T is the type for the selected client defintion
             //
             // In order to have separate client configurations using the same type (eg. two clients using different thumbprints), you can configure a 
@@ -73,6 +73,7 @@ namespace SampleWebApp
 
             // Add some configurations that will be injected for the respective client definitions
             services.Configure<MaskinportenSettings<SettingsJwkClientDefinition>>(Configuration.GetSection("MaskinportenSettingsForJwkSettings"));
+            services.Configure<MaskinportenSettings<SettingsX509ClientDefinition>>(Configuration.GetSection("MaskinportenSettingsForX509Settings"));
             services.Configure<MaskinportenSettings<Pkcs12ClientDefinition>>(Configuration.GetSection("MyMaskinportenSettingsForCertFile"));
             services.Configure<MaskinportenSettings<CertificateStoreClientDefinition>>(Configuration.GetSection("MyMaskinportenSettingsForThumbprint"));
             

@@ -32,7 +32,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
             string p12KeyStoreFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ClientSettings.CertificatePkcs12Path);
 
             X509Certificate2 signingCertificate = new X509Certificate2(
-                File.ReadAllBytes(p12KeyStoreFile), 
+                p12KeyStoreFile, 
                 ClientSettings.CertificatePkcs12Password, 
                 X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.Exportable);
 
