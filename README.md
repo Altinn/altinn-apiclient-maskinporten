@@ -246,3 +246,14 @@ private async Task<string> GetMaskinportenAccessToken()
     }
 }
 ```
+
+## Troubleshooting
+
+When facing issues, you might want to temporarily enable debug logging in the settings by adding the following key:
+
+```json
+"EnableDebugLogging": true
+```
+
+This will cause various information to be logged with severity "Information" to the injected logger. All log entries will have the prefix `[Altinn.ApiClients.Maskinporten DEBUG]: `.
+> Warning! This will cause signed assertions (a short-lived secret) to be logged, so only use this in troubleshooting scenarios. Only public key data will not be logged.

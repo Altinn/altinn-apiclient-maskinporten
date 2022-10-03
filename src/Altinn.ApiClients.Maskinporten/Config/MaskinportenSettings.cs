@@ -68,6 +68,11 @@ namespace Altinn.ApiClients.Maskinporten.Config
         /// Optional. Enables the DigDir token to be exchanged into a Altinn token for the test organisation.
         /// </summary>
         public bool? UseAltinnTestOrg { get; set; }
+
+        /// <summary>
+        /// Optional. Enabels verbose logging that should only be enabled when troubleshooting. Will cause logging (with severity "Information") of assertions.  
+        /// </summary>
+        public bool? EnableDebugLogging { get; set; }
     }
 
     public class MaskinportenSettings<T> : MaskinportenSettings where T : IClientDefinition { }

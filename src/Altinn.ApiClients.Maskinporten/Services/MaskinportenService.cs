@@ -26,6 +26,8 @@ namespace Altinn.ApiClients.Maskinporten.Services
 
         private static readonly SemaphoreSlim SemaphoreSlim = new SemaphoreSlim(1, 1);
 
+        private bool _enableDebugLogging = false;
+
         public MaskinportenService(HttpClient httpClient,
             ILogger<IMaskinportenService> logger,
             ITokenCacheProvider tokenCacheProvider)
@@ -56,14 +58,25 @@ namespace Altinn.ApiClients.Maskinporten.Services
 
         public async Task<TokenResponse> GetToken(IClientDefinition clientDefinition, bool disableCaching = false)
         {
+            if (clientDefinition.ClientSettings.EnableDebugLogging.HasValue &&
+                clientDefinition.ClientSettings.EnableDebugLogging.Value)
+            {
+                _enableDebugLogging = true;
+            }
+
             ClientSecrets clientSecrets = await clientDefinition.GetClientSecrets();
+
+            DebugLog($"GetToken: ClientID: {clientDefinition.ClientSettings.ClientId}");
+
             TokenResponse tokenResponse;
             if (clientSecrets.ClientKey != null)
             {
+                DebugLog($"GetToken: Using JWK, N={clientSecrets.ClientKey.N}");
                 tokenResponse = await GetToken(null, clientSecrets.ClientKey, clientDefinition.ClientSettings.Environment, clientDefinition.ClientSettings.ClientId, clientDefinition.ClientSettings.Scope, clientDefinition.ClientSettings.Resource, disableCaching);
             }
             else
             {
+                DebugLog($"GetToken: Using certificate, subject={clientSecrets.ClientCertificate.Subject}");
                 tokenResponse = await GetToken(clientSecrets.ClientCertificate, null,
                     clientDefinition.ClientSettings.Environment, clientDefinition.ClientSettings.ClientId,
                     clientDefinition.ClientSettings.Scope, clientDefinition.ClientSettings.Resource, disableCaching);
@@ -72,6 +85,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
             if (!string.IsNullOrEmpty(clientDefinition.ClientSettings.EnterpriseUserName) &&
                 !string.IsNullOrEmpty(clientDefinition.ClientSettings.EnterpriseUserPassword))
             {
+                DebugLog($"GetToken: Using enterprise username and password");
                 return await ExchangeToAltinnToken(tokenResponse, clientDefinition.ClientSettings.Environment, clientDefinition.ClientSettings.EnterpriseUserName,
                     clientDefinition.ClientSettings.EnterpriseUserPassword, disableCaching);
             }
@@ -111,9 +125,12 @@ namespace Altinn.ApiClients.Maskinporten.Services
                     (bool hasCachedValue, TokenResponse cachedTokenResponse) = await _tokenCacheProvider.TryGetToken(cacheKey);
                     if (hasCachedValue)
                     {
+                        DebugLog("ExchangeToAltinnToken: returning cached value");
                         return cachedTokenResponse;
                     }
                 }
+
+                DebugLog("ExchangeToAltinnToken: cache miss or cache disabled");
 
                 HttpRequestMessage requestMessage = new HttpRequestMessage()
                 {
@@ -124,6 +141,8 @@ namespace Altinn.ApiClients.Maskinporten.Services
 
                 if (isTestOrg)
                 {
+                    DebugLog("ExchangeToAltinnToken: isTestOrg is true");
+
                     requestMessage.RequestUri = new Uri(requestMessage.RequestUri + "?test=true");
                 }
 
@@ -138,9 +157,20 @@ namespace Altinn.ApiClients.Maskinporten.Services
                 {
                     requestMessage.Headers.TryAddWithoutValidation("X-Altinn-EnterpriseUser-Authentication",
                         Convert.ToBase64String(Encoding.UTF8.GetBytes($"{userName}:{password}")));
+
+                    DebugLog("ExchangeToAltinnToken: Setting X-Altinn-EnterpriseUser-Authentication");
+                }
+                else
+                {
+                    DebugLog("ExchangeToAltinnToken: not setting X-Altinn-EnterpriseUser-Authentication, missing settings?");
                 }
 
+                DebugLog("ExchangeToAltinnToken: Attempting token exchange");
+
                 exchangedTokenResponse.AccessToken = await PerformRequest<string>(requestMessage);
+
+                DebugLog($"ExchangeToAltinnToken: Received token, expires in {exchangedTokenResponse.ExpiresIn} seconds");
+
                 await _tokenCacheProvider.Set(cacheKey, exchangedTokenResponse,
                    new TimeSpan(0, 0, Math.Max(0, exchangedTokenResponse.ExpiresIn - 5)));
 
@@ -181,7 +211,9 @@ namespace Altinn.ApiClients.Maskinporten.Services
             JwtSecurityToken securityToken = new JwtSecurityToken(header, payload);
             JwtSecurityTokenHandler handler = new JwtSecurityTokenHandler();
 
-            return handler.WriteToken(securityToken);
+            var assertion = handler.WriteToken(securityToken);
+            DebugLog($"GetJwtAssertion: {assertion}");
+            return assertion;
         }
 
         private async Task<TokenResponse> GetToken(X509Certificate2 cert, JsonWebKey jwk, string environment, string clientId, string scope, string resource, bool disableCaching)
@@ -196,9 +228,12 @@ namespace Altinn.ApiClients.Maskinporten.Services
                     (bool hasCachedValue, TokenResponse cachedTokenResponse) = await _tokenCacheProvider.TryGetToken(cacheKey);
                     if (hasCachedValue)
                     {
+                        DebugLog("GetToken: returning cached value");
                         return cachedTokenResponse;
                     }
                 }
+
+                DebugLog("GetToken: cache miss or cache disabled");
 
                 string jwtAssertion = GetJwtAssertion(cert, jwk, environment, clientId, scope, resource);
                 HttpRequestMessage requestMessage = new HttpRequestMessage()
@@ -208,7 +243,12 @@ namespace Altinn.ApiClients.Maskinporten.Services
                     Content = GetUrlEncodedContent(jwtAssertion)
                 };
 
+                DebugLog($"GetToken: Requesting token from {GetTokenEndpoint(environment)}");
+
                 TokenResponse accesstokenResponse = await PerformRequest<TokenResponse>(requestMessage);
+
+                DebugLog($"GetToken: Received token, expires in {accesstokenResponse.ExpiresIn} seconds");
+
                 await _tokenCacheProvider.Set(cacheKey, accesstokenResponse,
                     new TimeSpan(0, 0, Math.Max(0, accesstokenResponse.ExpiresIn - 5)));
                 return accesstokenResponse;
@@ -276,6 +316,12 @@ namespace Altinn.ApiClients.Maskinporten.Services
 
             _logger.LogError("errorType={errorType} description={description} statuscode={statusCode}", error!.ErrorType, error.Description, response.StatusCode);
             throw new TokenRequestException(error.Description);
+        }
+
+        private void DebugLog(string message, params object[] args)
+        {
+            if (!_enableDebugLogging) return;
+            _logger.LogInformation("[Altinn.ApiClients.Maskinporten DEBUG]: " + message, args);
         }
 
         private string GetAssertionAud(string environment)
