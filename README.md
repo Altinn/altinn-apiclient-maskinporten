@@ -8,11 +8,11 @@ Install the nuget with `dotnet add package Altinn.ApiClients.Maskinporten` or si
 
 Pre-release versions of this nuget are made available on Github.
 
-## Basic usage
+## Usage
 
-For most scenarios utilizing the  extensions methods provided is the most convenient way of using this library, offering a HttpClient that can be injected and used transparently.
+This library provides extensions methods providing means to configure one or more HttpClients that can be injected and used transparently as any other HttpClient instance.
 
-You will need to configure a client definition, which is a way of providing the necessary OAuth2-related settings (client-id, scopes etc) as well as a way of getting the secret (either a X.509 certificate with a private key or a JWK with a private key) used to sign the requests to Maskinporten.
+You will need to configure a client definition, which is a way of providing the necessary OAuth2-related settings (client-id, scopes etc), as well as a way of getting the secret (either a X.509 certificate with a private key or a JWK with a private key) used to sign the requests to Maskinporten. The client definition also contains other settings, such as whether Altinn token exchange should be used.
 
 > Note: There are several different client definition types built-in that can be used for aquiring secrets from various, or one can provide a custom one if required. It is also possible to create several named/typed clients using different combinations of settings and definition types. See below for a list of builtin client definitions, and the "SampleWebApp"-project (especially Startup.cs) for examples on how this can be done and extended with your own custom definitions if required.
 
@@ -22,13 +22,19 @@ Here is an example with a both a [named](https://docs.microsoft.com/en-us/aspnet
 
 ```c#
 // Named client
-services.AddMaskinportenHttpClient<SettingsJwkClientDefinition>(
-    Configuration.GetSection("MaskinportenSettings"),
-    "myhttpclient");
+services.AddMaskinportenHttpClient<SettingsJwkClientDefinition>("myhttpclient",
+    Configuration.GetSection("MaskinportenSettings"));
 
 // Typed client (MyMaskinportenHttpClient is any class accepting a HttpClient paramter in its constructor)
 services.AddMaskinportenHttpClient<SettingsJwkClientDefinition, MyMaskinportenHttpClient>(
     Configuration.GetSection("MaskinportenSettings")); 
+
+// Another typed client, using the same app settings, but overriding the setting for Altinn token exchange
+services.AddMaskinportenHttpClient<SettingsJwkClientDefinition, MyMaskinportenHttpClient>(
+  Configuration.GetSection("MaskinportenSettings"), clientDefinition =>
+{
+    clientDefinition.ClientSettings.ExhangeToAltinnToken = true;
+});
 
 ```
 2. Configure Maskinporten environment in appsetting.json
@@ -191,6 +197,18 @@ If you require an Altinn Exchanged token for the TTD organisation, this is suppo
 "UseAltinnTestOrg": true
 ```
 
+These settings can also be supplied by providing a delegate like:
+
+```c#
+services.AddMaskinportenHttpClient<SettingsJwkClientDefinition, MyMaskinportenHttpClient>(
+  Configuration.GetSection("MaskinportenSettings"), clientDefinition =>
+{
+    clientDefinition.ClientSettings.ExhangeToAltinnToken = true;
+    clientDefinition.ClientSettings.UseAltinnTestOrg = true;
+});
+```
+
+
 ## Authenticating with a enterprise user
 
 This library also supports enriching Maskinporten tokens with enterprise user credentials for APIs requiring user roles/rights. In order to do this, you will need to add the following fields to the configuration, containing the enterpriseuser's username and password.
@@ -256,4 +274,4 @@ When facing issues, you might want to temporarily enable debug logging in the se
 ```
 
 This will cause various information to be logged with severity "Information" to the injected logger. All log entries will have the prefix `[Altinn.ApiClients.Maskinporten DEBUG]: `.
-> Warning! This will cause signed assertions (a short-lived secret) to be logged, so only use this in troubleshooting scenarios. Only public key data will not be logged.
+> Warning! This will cause signed assertions (a short-lived secret) to be logged, so only use this in troubleshooting scenarios. No private key material will be logged.

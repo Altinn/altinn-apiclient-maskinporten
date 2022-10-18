@@ -11,20 +11,6 @@ namespace Altinn.ApiClients.Maskinporten.Services
 {
     public class SettingsX509ClientDefinition : IClientDefinition
     {
-        public SettingsX509ClientDefinition()
-        {
-        }
-
-        public SettingsX509ClientDefinition(IOptions<MaskinportenSettings<SettingsJwkClientDefinition>> clientSettings)
-        {
-            ClientSettings = clientSettings.Value;
-        }
-
-        public SettingsX509ClientDefinition(MaskinportenSettings clientSettings)
-        {
-            ClientSettings = clientSettings;
-        }
-
         public MaskinportenSettings ClientSettings { get; set; }
 
         public async Task<ClientSecrets> GetClientSecrets()
@@ -41,8 +27,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
                 clientSecrets.ClientCertificate = new X509Certificate2(
                     file,
                     String.Empty,
-                    X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.PersistKeySet |
-                    X509KeyStorageFlags.Exportable);
+                    X509KeyStorageFlags.EphemeralKeySet);
 
                 return clientSecrets;
             }
@@ -50,18 +35,6 @@ namespace Altinn.ApiClients.Maskinporten.Services
             {
                 File.Delete(file);
             }
-        }
-    }
-
-    public class SettingsX509ClientDefinition<T> : CertificateStoreClientDefinition where T : IClientDefinition
-    {
-        public SettingsX509ClientDefinition(IOptions<MaskinportenSettings<SettingsJwkClientDefinition<T>>> clientSettings)
-        {
-            ClientSettings = clientSettings.Value;
-        }
-
-        public SettingsX509ClientDefinition(MaskinportenSettings clientSettings) : base(clientSettings)
-        {
         }
     }
 }

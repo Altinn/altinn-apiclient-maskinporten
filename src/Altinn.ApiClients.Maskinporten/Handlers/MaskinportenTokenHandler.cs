@@ -8,12 +8,12 @@ using Altinn.ApiClients.Maskinporten.Interfaces;
 
 namespace Altinn.ApiClients.Maskinporten.Handlers
 {
-    public class MaskinportenTokenHandler<T> : DelegatingHandler where T : IClientDefinition
+    public class MaskinportenTokenHandler : DelegatingHandler
     {
         private readonly IMaskinportenService _maskinporten;
-        private readonly T _clientDefinition;
+        private readonly IClientDefinition _clientDefinition;
 
-        public MaskinportenTokenHandler(IMaskinportenService maskinporten, T clientDefinition)
+        public MaskinportenTokenHandler(IMaskinportenService maskinporten, IClientDefinition clientDefinition)
         {
             _maskinporten = maskinporten;
             _clientDefinition = clientDefinition;

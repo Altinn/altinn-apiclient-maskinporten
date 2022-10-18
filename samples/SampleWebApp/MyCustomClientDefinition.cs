@@ -6,7 +6,6 @@ using Altinn.ApiClients.Maskinporten.Interfaces;
 using Altinn.ApiClients.Maskinporten.Models;
 using Azure.Security.KeyVault.Secrets;
 using Azure.Identity;
-using Microsoft.Extensions.Options;
 using SampleWebApp.Config;
 
 namespace SampleWebApp
@@ -14,15 +13,9 @@ namespace SampleWebApp
     public class MyCustomClientDefinition : IClientDefinition
     {
         public MaskinportenSettings ClientSettings { get; set; }
-        public MyCustomClientDefinitionSettings MyCustomClientDefinitionSettings { get; set; }
+        public MyCustomClientDefinitionSettings MyCustomClientDefinitionSettings { get; set; } = new();
 
         private ClientSecrets _clientSecrets;
-
-        public MyCustomClientDefinition(IOptions<MyCustomClientDefinitionSettings> clientSettings)
-        {
-            ClientSettings = clientSettings.Value;
-            MyCustomClientDefinitionSettings = clientSettings.Value;
-        }
 
         public async Task<ClientSecrets> GetClientSecrets()
         {
@@ -45,7 +38,7 @@ namespace SampleWebApp
             var signingCertificate = new X509Certificate2(
                 Convert.FromBase64String(base64Str),
                 ClientSettings.CertificatePkcs12Password,
-                X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.Exportable);
+                X509KeyStorageFlags.EphemeralKeySet);
 
             _clientSecrets =  new ClientSecrets()
             {

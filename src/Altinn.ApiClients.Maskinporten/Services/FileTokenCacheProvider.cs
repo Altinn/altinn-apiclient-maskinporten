@@ -62,7 +62,12 @@ namespace Altinn.ApiClients.Maskinporten.Services
                 }
 
                 fileContents = new byte[fs.Length];
-                await fs.ReadAsync(fileContents.AsMemory(0, (int)fs.Length));
+                var readBytes = 0;
+                do
+                {
+                    readBytes = await fs.ReadAsync(fileContents.AsMemory(readBytes, (int)fs.Length));
+                }
+                while (readBytes < (int)fs.Length);
             }
 
             _tokenCacheStoreEntries = JsonSerializer.Deserialize<Dictionary<string, TokenCacheStoreEntry>>(fileContents);

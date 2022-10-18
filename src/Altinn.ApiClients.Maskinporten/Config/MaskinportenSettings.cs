@@ -75,5 +75,12 @@ namespace Altinn.ApiClients.Maskinporten.Config
         public bool? EnableDebugLogging { get; set; }
     }
 
-    public class MaskinportenSettings<T> : MaskinportenSettings where T : IClientDefinition { }
+    // These empty classes are used so that the DI container can differentiate between different client definitions/typed http client combinations
+    // allowing for several Maskinporten-clients available for DI
+
+    // ReSharper disable UnusedTypeParameter
+    public class MaskinportenSettings<TClientDefinition> : MaskinportenSettings where TClientDefinition : IClientDefinition { }
+    public class MaskinportenSettings<TClientDefinition, THttpClient> : MaskinportenSettings 
+        where TClientDefinition : IClientDefinition 
+        where THttpClient : class { }
 }

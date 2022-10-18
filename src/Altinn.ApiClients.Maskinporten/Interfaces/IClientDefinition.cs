@@ -9,6 +9,4 @@ namespace Altinn.ApiClients.Maskinporten.Interfaces
         MaskinportenSettings ClientSettings { get; set; }
         Task<ClientSecrets> GetClientSecrets();
     }
-
-    public interface IClientDefinition<T> : IClientDefinition where T : IClientDefinition { }
 }

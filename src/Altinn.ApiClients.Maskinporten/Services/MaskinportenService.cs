@@ -74,12 +74,16 @@ namespace Altinn.ApiClients.Maskinporten.Services
                 DebugLog($"GetToken: Using JWK, N={clientSecrets.ClientKey.N}");
                 tokenResponse = await GetToken(null, clientSecrets.ClientKey, clientDefinition.ClientSettings.Environment, clientDefinition.ClientSettings.ClientId, clientDefinition.ClientSettings.Scope, clientDefinition.ClientSettings.Resource, disableCaching);
             }
-            else
+            else if (clientSecrets.ClientCertificate != null)
             {
                 DebugLog($"GetToken: Using certificate, subject={clientSecrets.ClientCertificate.Subject}");
                 tokenResponse = await GetToken(clientSecrets.ClientCertificate, null,
                     clientDefinition.ClientSettings.Environment, clientDefinition.ClientSettings.ClientId,
                     clientDefinition.ClientSettings.Scope, clientDefinition.ClientSettings.Resource, disableCaching);
+            }
+            else
+            {
+                throw new Exception("MaskinportenService: Missing settings!");
             }
 
             if (!string.IsNullOrEmpty(clientDefinition.ClientSettings.EnterpriseUserName) &&

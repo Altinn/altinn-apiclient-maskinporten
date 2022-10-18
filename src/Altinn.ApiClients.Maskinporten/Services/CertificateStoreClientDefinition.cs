@@ -4,27 +4,12 @@ using System.Threading.Tasks;
 using Altinn.ApiClients.Maskinporten.Config;
 using Altinn.ApiClients.Maskinporten.Interfaces;
 using Altinn.ApiClients.Maskinporten.Models;
-using Microsoft.Extensions.Options;
 
 namespace Altinn.ApiClients.Maskinporten.Services
 {
     public class CertificateStoreClientDefinition : IClientDefinition
     {
         public MaskinportenSettings ClientSettings { get; set; }
-
-        public CertificateStoreClientDefinition()
-        {
-        }
-
-        public CertificateStoreClientDefinition(IOptions<MaskinportenSettings<CertificateStoreClientDefinition>> clientSettings)
-        {
-            ClientSettings = clientSettings.Value;
-        }
-
-        public CertificateStoreClientDefinition(MaskinportenSettings clientSettings)
-        {
-            ClientSettings = clientSettings;
-        }
 
         public Task<ClientSecrets> GetClientSecrets()
         {
@@ -53,18 +38,6 @@ namespace Altinn.ApiClients.Maskinporten.Services
             }
 
             return cert;
-        }
-    }
-
-    public class CertificateStoreClientDefinition<T> : CertificateStoreClientDefinition where T : IClientDefinition
-    {
-        public CertificateStoreClientDefinition(IOptions<MaskinportenSettings<CertificateStoreClientDefinition<T>>> clientSettings)
-        {
-            ClientSettings = clientSettings.Value;
-        }
-
-        public CertificateStoreClientDefinition(MaskinportenSettings clientSettings) : base(clientSettings)
-        {
         }
     }
 }
