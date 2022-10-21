@@ -47,37 +47,9 @@ namespace SampleWebApp
                     clientDefinition.ClientSettings.ExhangeToAltinnToken = true;
                 });
 
-            /*  --------------------------------------------------------------------------------------------- 
-            // Configuring and adding the MaskinportenHttpClient can also be performed in separate steps. 
-            // As with the above, a delegate can be supplied to override the injected settings
-
-            services.Configure<MaskinportenSettings<SettingsJwkClientDefinition, MyMaskinportenHttpClient>>(
-                    Configuration.GetSection("MaskinportenSettingsForSomeExternalApi"));
-            
-            services.AddMaskinportenHttpClient<SettingsJwkClientDefinition, MyMaskinportenHttpClient>(clientDefinition =>
-            {
-                clientDefinition.ClientSettings.ExhangeToAltinnToken = true;
-            });
-            // --------------------------------------------------------------------------------------------- */
-
-
             // As an alternative, named HTTP clients can be used. 
             services.AddMaskinportenHttpClient<SettingsJwkClientDefinition>("myhttpclient", 
                 Configuration.GetSection("MaskinportenSettingsForSomeExternalApi"));
-
-            /* ---------------------------------------------------------------------------------------------
-            // As with typed clients, configuring and adding the named client can be performed in separate steps.
-
-            services.Configure<MaskinportenSettings<SettingsJwkClientDefinition>>(
-                    Configuration.GetSection("MaskinportenSettingsForSomeExternalApi"));
-            
-            // .. and a delegate may be provided for overriding settings
-            services.AddMaskinportenHttpClient<SettingsJwkClientDefinition>("myhttpclient", clientDefinition =>
-            {
-                clientDefinition.ClientSettings.EnableDebugLogging = true;
-            });
-            // --------------------------------------------------------------------------------------------- */
-
 
             // You can also define your own client definitions:
             services.AddMaskinportenHttpClient<MyCustomClientDefinition, MyFourthMaskinportenHttpClient>(
@@ -87,32 +59,12 @@ namespace SampleWebApp
                     Configuration.GetSection("MyCustomClientDefinition").Bind(clientDefinition.MyCustomClientDefinitionSettings);
                 });
 
-            /* --------------------------------------------------------------------------------------------- 
-            // As with the built-in client definitions, configuring and adding can be performed in separate steps
-            services.Configure<MaskinportenSettings<MyCustomClientDefinition, MyMaskinportenHttpClient>>(Configuration.GetSection("MyCustomClientDefinition"));
-            services.AddMaskinportenHttpClient<MyCustomClientDefinition, MyMaskinportenHttpClient>(
-                clientDefinition =>
-                {
-                    Configuration.GetSection("MyCustomClientDefinition").Bind(clientDefinition.MyCustomClientDefinitionSettings);
-                });
-            // --------------------------------------------------------------------------------------------- */
-
-
             // Named http clients for custom client definitions
             services.AddMaskinportenHttpClient<MyCustomClientDefinition>("myotherhttpclient", Configuration.GetSection("MyCustomClientDefinition"), clientDefinition =>
             {
                 Configuration.GetSection("MyCustomClientDefinition").Bind(clientDefinition.MyCustomClientDefinitionSettings);
             });
 
-            /* --------------------------------------------------------------------------------------------- 
-            // Alternatively, configure/add in separate steps
-            services.Configure<MaskinportenSettings<MyCustomClientDefinition, MyMaskinportenHttpClient>>(Configuration.GetSection("MyCustomClientDefinition"));
-            services.AddMaskinportenHttpClient<MyCustomClientDefinition>("myotherhttpclient",
-                clientDefinition =>
-                {
-                    clientDefinition.ClientSettings.EnableDebugLogging = true;
-                });
-            // --------------------------------------------------------------------------------------------- */
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
