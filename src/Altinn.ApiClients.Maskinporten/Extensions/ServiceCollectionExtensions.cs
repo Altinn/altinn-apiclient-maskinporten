@@ -26,7 +26,7 @@ namespace Altinn.ApiClients.Maskinporten.Extensions
         {
             AddMaskinportenClientCommon(services);
             services.AddSingleton<IClientDefinition, TClientDefinition>();
-            ClientDefinitionsHelper.Add(httpClientName, config);
+            MaskinportenHttpClientConfigHelper.AddHttpClientConfiguration(httpClientName, config);
 
             services.AddHttpClient(httpClientName).AddHttpMessageHandler(sp =>
             {
@@ -50,7 +50,7 @@ namespace Altinn.ApiClients.Maskinporten.Extensions
         {
             AddMaskinportenClientCommon(services);
             services.AddSingleton<IClientDefinition, TClientDefinition>();
-            ClientDefinitionsHelper.Add<THttpClient>(config);
+            MaskinportenHttpClientConfigHelper.AddHttpClientConfiguration<THttpClient>(config);
             services.AddHttpClient<THttpClient>().AddHttpMessageHandler(sp =>
             {
                 var factory = sp.GetRequiredService<MaskinportenHttpMessageHandlerFactory>();

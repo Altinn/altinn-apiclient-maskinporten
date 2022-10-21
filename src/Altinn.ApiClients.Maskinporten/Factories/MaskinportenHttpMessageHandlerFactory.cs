@@ -25,22 +25,22 @@ namespace Altinn.ApiClients.Maskinporten.Factories
         public DelegatingHandler Get<TClientDefinition, THttpClient>(Action<TClientDefinition> configureClientDefinition = null)
             where TClientDefinition : class, IClientDefinition
         {
-            return GetByKey(ClientDefinitionsHelper.GetKey<THttpClient>(), configureClientDefinition);
+            return GetByKey(MaskinportenHttpClientConfigHelper.GetKeyForHttpClient<THttpClient>(), configureClientDefinition);
         }
 
         public DelegatingHandler Get<TClientDefinition>(string httpClientName, Action<TClientDefinition> configureClientDefinition = null)
             where TClientDefinition : class, IClientDefinition
         {
-            return GetByKey(ClientDefinitionsHelper.GetKey(httpClientName), configureClientDefinition);
+            return GetByKey(MaskinportenHttpClientConfigHelper.GetKeyForHttpClient(httpClientName), configureClientDefinition);
         }
 
         private DelegatingHandler GetByKey<TClientDefinition>(string key, Action<TClientDefinition> configureClientDefinition = null)
             where TClientDefinition : class, IClientDefinition
         {
-            var index = ClientDefinitionsHelper.GetIndexOf(key);
+            var index = MaskinportenHttpClientConfigHelper.GetIndexOf(key);
             var clientDefinition = (TClientDefinition)_clientDefinitions.ElementAt(index);
             var settings = new MaskinportenSettings();
-            ClientDefinitionsHelper.GetConfiguration(index).Bind(settings);
+            MaskinportenHttpClientConfigHelper.GetConfiguration(index).Bind(settings);
             clientDefinition.ClientSettings = settings;
             configureClientDefinition?.Invoke(clientDefinition);
             return new MaskinportenTokenHandler(_maskinportenService, clientDefinition);
