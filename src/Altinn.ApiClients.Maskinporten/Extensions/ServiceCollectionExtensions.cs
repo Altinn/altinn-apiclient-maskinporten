@@ -37,7 +37,7 @@ namespace Altinn.ApiClients.Maskinporten.Extensions
             MaskinportenHttpClientConfigHelper.AddHttpClientConfiguration(httpClientName, config);
 
             return services.AddHttpClient(httpClientName)
-                .AddMaskinportenHttpMessageHandler<TClientDefinition>(httpClientName);
+                .AddMaskinportenHttpMessageHandler(httpClientName, configureClientDefinition);
 
         }
 
@@ -59,7 +59,7 @@ namespace Altinn.ApiClients.Maskinporten.Extensions
             MaskinportenHttpClientConfigHelper.AddHttpClientConfiguration<THttpClient>(config);
 
             return services.AddHttpClient<THttpClient>()
-                .AddMaskinportenHttpMessageHandler<TClientDefinition, THttpClient>();
+                .AddMaskinportenHttpMessageHandler<TClientDefinition, THttpClient>(configureClientDefinition);
         }
 
         private static void AddMaskinportenClientCommon(IServiceCollection services)
