@@ -65,6 +65,12 @@ namespace SampleWebApp
                 Configuration.GetSection("MyCustomClientDefinition").Bind(clientDefinition.MyCustomClientDefinitionSettings);
             });
 
+            // You can chain additional handlers or configure the client further if you want
+            /*
+            services.AddMaskinportenHttpClient<SettingsJwkClientDefinition, MyMaskinportenHttpClient>(Configuration.GetSection("MaskinportenSettingsForSomeExternalApi"))
+                .AddHttpMessageHandler(sp => ...)
+                .ConfigureHttpClient(client => ...)
+            */
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
