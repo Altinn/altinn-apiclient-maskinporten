@@ -4,6 +4,11 @@ using Microsoft.Extensions.Configuration;
 
 namespace Altinn.ApiClients.Maskinporten.Helpers
 {
+    /// <summary>
+    /// Manage two lists with identifiers for typed and named clients. The index of a given client
+    /// in each of these lists are used by MaskinportenHttpMessageHandlerFactory to find the correct
+    /// IClientDefinition instance in which to inject the correct settings.
+    /// </summary>
     public static class MaskinportenHttpClientConfigHelper
     {
         public static readonly List<string> HttpClientKeys = new();

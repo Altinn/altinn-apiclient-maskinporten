@@ -10,6 +10,14 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Altinn.ApiClients.Maskinporten.Extensions
 {
+    /// <summary>
+    /// We add all IClientDefinition implementation to the DI container and immediately add the corresponding
+    /// httpClient and configuration to a static list via the helpers in MaskinportenHttpClientConfigHelper.
+    /// The MaskinportenHttpMessageHandlerFactory relies on the index of a given httpClient/configuration
+    /// matching the index of the IClientDefinition service when injected as a IEnumerable&lt;IClientDefinition&gt;
+    /// This way we can support having multiple named/typed HTTP clients using the same IClientDefinition implementation,
+    /// (but different singleton instances), whilst the IClientDefinition can use normal DI in its constructors
+    /// </summary>
     public static class ServiceCollectionExtensions
     {
         /// <summary>

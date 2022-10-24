@@ -10,6 +10,11 @@ using Microsoft.Extensions.Configuration;
 
 namespace Altinn.ApiClients.Maskinporten.Factories
 {
+    /// <summary>
+    /// This factory will have all instances of IClientDefinition injected. Using MaskinportenHttpClientConfigHelper to
+    /// get the correct index for a given named/typed client, the factory will populate the correct IClientDefinition
+    /// instance with the config, and return a MaskinportenTokenHandler which is attached to the named/typed client
+    /// </summary>
     public class MaskinportenHttpMessageHandlerFactory
     {
         private readonly IEnumerable<IClientDefinition> _clientDefinitions;
