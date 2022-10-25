@@ -45,6 +45,8 @@ namespace SampleWebApp
                 Configuration.GetSection("MaskinportenSettingsForSomeOtherExternalApi"), clientDefinition =>
                 {
                     clientDefinition.ClientSettings.ExhangeToAltinnToken = true;
+                    clientDefinition.ClientSettings.Scope =
+                        "altinn:serviceowner/instances.read altinn:serviceowner/instances.write";
                 });
 
             // As an alternative, named HTTP clients can be used. 
@@ -70,6 +72,15 @@ namespace SampleWebApp
             services.AddMaskinportenHttpClient<SettingsJwkClientDefinition, MyMaskinportenHttpClient>(Configuration.GetSection("MaskinportenSettingsForSomeExternalApi"))
                 .AddHttpMessageHandler(sp => ...)
                 .ConfigureHttpClient(client => ...)
+            */
+
+            /*
+            // Registering av Maskinporten-powered client (not adding one to HttpClientFactory / DIC
+            services.RegisterMaskinportenHttpClient<SettingsJwkClientDefinition, MyMaskinportenHttpClient>(Configuration.GetSection("MaskinportenSettingsForSomeExternalApi"));
+
+            // This can then be added as a HttpMessageHandler to any IClientBuilder (if also using DAN, Polly, Refit etc)
+            services.AddHttpClient<MyMaskinportenHttpClient>()
+                    .AddMaskinportenHttpMessageHandler<SettingsJwkClientDefinition, MyMaskinportenHttpClient>();
             */
         }
 
