@@ -6,16 +6,23 @@ using Altinn.ApiClients.Maskinporten.Interfaces;
 using Altinn.ApiClients.Maskinporten.Models;
 using Azure.Security.KeyVault.Secrets;
 using Azure.Identity;
+using Microsoft.Extensions.Logging;
 using SampleWebApp.Config;
 
 namespace SampleWebApp
 {
     public class MyCustomClientDefinition : IClientDefinition
     {
+        private readonly ILogger<MyCustomClientDefinition> _logger;
         public MaskinportenSettings ClientSettings { get; set; }
         public MyCustomClientDefinitionSettings MyCustomClientDefinitionSettings { get; set; } = new();
 
         private ClientSecrets _clientSecrets;
+
+        public MyCustomClientDefinition(ILogger<MyCustomClientDefinition> logger)
+        {
+            _logger = logger;
+        }
 
         public async Task<ClientSecrets> GetClientSecrets()
         {
@@ -23,6 +30,8 @@ namespace SampleWebApp
             {
                 return _clientSecrets;
             }
+
+            _logger.LogInformation("Getting secrets from Azure");
             
             var secretClient = new SecretClient(
                 new Uri($"https://{MyCustomClientDefinitionSettings.AzureKeyVaultName}.vault.azure.net/"),

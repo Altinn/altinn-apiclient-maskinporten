@@ -45,39 +45,13 @@ namespace SampleWebApp
                 Configuration.GetSection("MaskinportenSettingsForSomeOtherExternalApi"), clientDefinition =>
                 {
                     clientDefinition.ClientSettings.ExhangeToAltinnToken = true;
+                    clientDefinition.ClientSettings.Scope =
+                        "altinn:serviceowner/instances.read altinn:serviceowner/instances.write";
                 });
-
-            /*  --------------------------------------------------------------------------------------------- 
-            // Configuring and adding the MaskinportenHttpClient can also be performed in separate steps. 
-            // As with the above, a delegate can be supplied to override the injected settings
-
-            services.Configure<MaskinportenSettings<SettingsJwkClientDefinition, MyMaskinportenHttpClient>>(
-                    Configuration.GetSection("MaskinportenSettingsForSomeExternalApi"));
-            
-            services.AddMaskinportenHttpClient<SettingsJwkClientDefinition, MyMaskinportenHttpClient>(clientDefinition =>
-            {
-                clientDefinition.ClientSettings.ExhangeToAltinnToken = true;
-            });
-            // --------------------------------------------------------------------------------------------- */
-
 
             // As an alternative, named HTTP clients can be used. 
             services.AddMaskinportenHttpClient<SettingsJwkClientDefinition>("myhttpclient", 
                 Configuration.GetSection("MaskinportenSettingsForSomeExternalApi"));
-
-            /* ---------------------------------------------------------------------------------------------
-            // As with typed clients, configuring and adding the named client can be performed in separate steps.
-
-            services.Configure<MaskinportenSettings<SettingsJwkClientDefinition>>(
-                    Configuration.GetSection("MaskinportenSettingsForSomeExternalApi"));
-            
-            // .. and a delegate may be provided for overriding settings
-            services.AddMaskinportenHttpClient<SettingsJwkClientDefinition>("myhttpclient", clientDefinition =>
-            {
-                clientDefinition.ClientSettings.EnableDebugLogging = true;
-            });
-            // --------------------------------------------------------------------------------------------- */
-
 
             // You can also define your own client definitions:
             services.AddMaskinportenHttpClient<MyCustomClientDefinition, MyFourthMaskinportenHttpClient>(
@@ -87,32 +61,27 @@ namespace SampleWebApp
                     Configuration.GetSection("MyCustomClientDefinition").Bind(clientDefinition.MyCustomClientDefinitionSettings);
                 });
 
-            /* --------------------------------------------------------------------------------------------- 
-            // As with the built-in client definitions, configuring and adding can be performed in separate steps
-            services.Configure<MaskinportenSettings<MyCustomClientDefinition, MyMaskinportenHttpClient>>(Configuration.GetSection("MyCustomClientDefinition"));
-            services.AddMaskinportenHttpClient<MyCustomClientDefinition, MyMaskinportenHttpClient>(
-                clientDefinition =>
-                {
-                    Configuration.GetSection("MyCustomClientDefinition").Bind(clientDefinition.MyCustomClientDefinitionSettings);
-                });
-            // --------------------------------------------------------------------------------------------- */
-
-
             // Named http clients for custom client definitions
             services.AddMaskinportenHttpClient<MyCustomClientDefinition>("myotherhttpclient", Configuration.GetSection("MyCustomClientDefinition"), clientDefinition =>
             {
                 Configuration.GetSection("MyCustomClientDefinition").Bind(clientDefinition.MyCustomClientDefinitionSettings);
             });
 
-            /* --------------------------------------------------------------------------------------------- 
-            // Alternatively, configure/add in separate steps
-            services.Configure<MaskinportenSettings<MyCustomClientDefinition, MyMaskinportenHttpClient>>(Configuration.GetSection("MyCustomClientDefinition"));
-            services.AddMaskinportenHttpClient<MyCustomClientDefinition>("myotherhttpclient",
-                clientDefinition =>
-                {
-                    clientDefinition.ClientSettings.EnableDebugLogging = true;
-                });
-            // --------------------------------------------------------------------------------------------- */
+            // You can chain additional handlers or configure the client further if you want
+            /*
+            services.AddMaskinportenHttpClient<SettingsJwkClientDefinition, MyMaskinportenHttpClient>(Configuration.GetSection("MaskinportenSettingsForSomeExternalApi"))
+                .AddHttpMessageHandler(sp => ...)
+                .ConfigureHttpClient(client => ...)
+            */
+
+            /*
+            // Registering av Maskinporten-powered client (not adding one to HttpClientFactory / DIC
+            services.RegisterMaskinportenHttpClient<SettingsJwkClientDefinition, MyMaskinportenHttpClient>(Configuration.GetSection("MaskinportenSettingsForSomeExternalApi"));
+
+            // This can then be added as a HttpMessageHandler to any IClientBuilder (if also using DAN, Polly, Refit etc)
+            services.AddHttpClient<MyMaskinportenHttpClient>()
+                    .AddMaskinportenHttpMessageHandler<SettingsJwkClientDefinition, MyMaskinportenHttpClient>();
+            */
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)

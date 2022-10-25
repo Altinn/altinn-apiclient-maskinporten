@@ -26,7 +26,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
 
         private static readonly SemaphoreSlim SemaphoreSlim = new SemaphoreSlim(1, 1);
 
-        private bool _enableDebugLogging = false;
+        private bool _enableDebugLogging;
 
         public MaskinportenService(HttpClient httpClient,
             ILogger<IMaskinportenService> logger,

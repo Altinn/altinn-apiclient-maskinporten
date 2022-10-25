@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using Altinn.ApiClients.Maskinporten.Config;
 using Altinn.ApiClients.Maskinporten.Interfaces;
 using Altinn.ApiClients.Maskinporten.Models;
-using Microsoft.Extensions.Options;
 
 namespace Altinn.ApiClients.Maskinporten.Services
 {
