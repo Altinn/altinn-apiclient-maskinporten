@@ -11,7 +11,7 @@ using Microsoft.Extensions.Configuration;
 namespace Altinn.ApiClients.Maskinporten.Factories
 {
     /// <summary>
-    /// This factory will have all instances of IClientDefinition injected. Using MaskinportenHttpClientConfigHelper to
+    /// This factory will have all instances of IClientDefinition injected. Using MaskinportenClientDefinitionHelper to
     /// get the correct index for a given named/typed client, the factory will populate the correct IClientDefinition
     /// instance with the config, and return a MaskinportenTokenHandler which is attached to the named/typed client
     /// </summary>
@@ -30,22 +30,22 @@ namespace Altinn.ApiClients.Maskinporten.Factories
         public DelegatingHandler Get<TClientDefinition, THttpClient>(Action<TClientDefinition> configureClientDefinition = null)
             where TClientDefinition : class, IClientDefinition
         {
-            return GetByKey(MaskinportenHttpClientConfigHelper.GetKeyForHttpClient<THttpClient>(), configureClientDefinition);
+            return GetByKey(typeof(THttpClient).FullName, configureClientDefinition);
         }
 
         public DelegatingHandler Get<TClientDefinition>(string httpClientName, Action<TClientDefinition> configureClientDefinition = null)
             where TClientDefinition : class, IClientDefinition
         {
-            return GetByKey(MaskinportenHttpClientConfigHelper.GetKeyForHttpClient(httpClientName), configureClientDefinition);
+            return GetByKey(httpClientName, configureClientDefinition);
         }
 
         private DelegatingHandler GetByKey<TClientDefinition>(string key, Action<TClientDefinition> configureClientDefinition = null)
             where TClientDefinition : class, IClientDefinition
         {
-            var index = MaskinportenHttpClientConfigHelper.GetIndexOf(key);
+            var index = MaskinportenClientDefinitionHelper.GetIndexOf(key);
             var clientDefinition = (TClientDefinition)_clientDefinitions.ElementAt(index);
             var settings = new MaskinportenSettings();
-            MaskinportenHttpClientConfigHelper.GetConfiguration(index).Bind(settings);
+            MaskinportenClientDefinitionHelper.GetConfiguration(index).Bind(settings);
             clientDefinition.ClientSettings = settings;
             configureClientDefinition?.Invoke(clientDefinition);
             return new MaskinportenTokenHandler(_maskinportenService, clientDefinition);

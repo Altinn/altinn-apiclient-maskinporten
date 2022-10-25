@@ -75,12 +75,12 @@ namespace SampleWebApp
             */
 
             /*
-            // Registering av Maskinporten-powered client (not adding one to HttpClientFactory / DIC
-            services.RegisterMaskinportenHttpClient<SettingsJwkClientDefinition, MyMaskinportenHttpClient>(Configuration.GetSection("MaskinportenSettingsForSomeExternalApi"));
+            // Register a client definition and a configuration, identified by some arbitrary string key
+            services.RegisterMaskinportenClientDefinition<SettingsJwkClientDefinition>("my-client-definition-key", Configuration.GetSection("MaskinportenSettingsForSomeExternalApi"));
 
             // This can then be added as a HttpMessageHandler to any IClientBuilder (if also using DAN, Polly, Refit etc)
             services.AddHttpClient<MyMaskinportenHttpClient>()
-                    .AddMaskinportenHttpMessageHandler<SettingsJwkClientDefinition, MyMaskinportenHttpClient>();
+                    .AddMaskinportenHttpMessageHandler<SettingsJwkClientDefinition>("my-client-definition-key");
             */
         }
 

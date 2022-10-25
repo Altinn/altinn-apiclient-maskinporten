@@ -38,18 +38,19 @@ services.AddMaskinportenHttpClient<SettingsJwkClientDefinition, MyMaskinportenHt
 
 // You can chain additional handlers or configure the client if required 
 services.AddMaskinportenHttpClient<SettingsJwkClientDefinition, MyMaskinportenHttpClient>(
-  Configuration.GetSection("MaskinportenSettings))
+  Configuration.GetSection("MaskinportenSettings"))
     .AddHttpMessageHandler(sp => ...)
     .ConfigureHttpClient(client => ...)
             
 // Registering av Maskinporten-powered client without adding it to HttpClientFactory / DIC
-services.RegisterMaskinportenHttpClient<SettingsJwkClientDefinition, MyMaskinportenHttpClient>(
-  Configuration.GetSection("MaskinportenSettingsForSomeExternalApi"));
+services.RegisterMaskinportenClientDefinition<SettingsJwkClientDefinition>(
+  "my-client-definition-instance-key",
+  Configuration.GetSection("MaskinportenSettings"));
 
 // This can then be added as a HttpMessageHandler to any IClientBuilder. This is
 // useful if you're already using a client builder (DAN, Polly, Refit etc).
 services.AddHttpClient<MyMaskinportenHttpClient>()
-    .AddMaskinportenHttpMessageHandler<SettingsJwkClientDefinition, MyMaskinportenHttpClient>();
+    .AddMaskinportenHttpMessageHandler<SettingsJwkClientDefinition>("my-client-definition-instance-key");
 
 
 ```

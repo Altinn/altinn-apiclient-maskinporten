@@ -11,9 +11,9 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 namespace Altinn.ApiClients.Maskinporten.Extensions
 {
     /// <summary>
-    /// We add all IClientDefinition implementation to the DI container and immediately add the corresponding
-    /// httpClient and configuration to a static list via the helpers in MaskinportenHttpClientConfigHelper.
-    /// The MaskinportenHttpMessageHandlerFactory relies on the index of a given httpClient/configuration
+    /// We add all IClientDefinition implementation to the DI container and immediately add a reference to the corresponding
+    /// httpClient and configuration to a static list via the helpers in MaskinportenClientDefinitionHelper.
+    /// The MaskinportenHttpMessageHandlerFactory relies on the index of a given httpClient refence/configuration
     /// matching the index of the IClientDefinition service when injected as a IEnumerable&lt;IClientDefinition&gt;
     /// This way we can support having multiple named/typed HTTP clients using the same IClientDefinition implementation,
     /// (but different singleton instances), whilst the IClientDefinition can use normal DI in its constructors
@@ -21,38 +21,21 @@ namespace Altinn.ApiClients.Maskinporten.Extensions
     public static class ServiceCollectionExtensions
     {
         /// <summary>
-        /// Registers a named Maskinporten-enabled HTTP client definition. Use IHttpClientBuilder.AddMaskinportenHttpMessageHandler
-        /// to attach it to a HttpClient
+        /// Registers a Maskinporten client definition instance with a unique key. This allows for several instances using the
+        /// same client definition but varying configurations. Use IHttpClientBuilder.AddMaskinportenHttpMessageHandler
+        /// to attach it to a HttpClient, using the same key.
         /// </summary>
         /// <typeparam name="TClientDefinition">The client definition</typeparam>
         /// <param name="services">Service collection</param>
-        /// <param name="httpClientName">Name of HTTP client</param>
+        /// <param name="clientDefinitionKey">Key to uniquely identify this client definition instance</param>
         /// <param name="config">Configuration to use</param>
-        public static void RegisterMaskinportenHttpClient<TClientDefinition>(this IServiceCollection services,
-            string httpClientName, IConfiguration config)
+        public static void RegisterMaskinportenClientDefinition<TClientDefinition>(this IServiceCollection services,
+            string clientDefinitionKey, IConfiguration config)
             where TClientDefinition : class, IClientDefinition
         {
             AddMaskinportenClientCommon(services);
             services.AddSingleton<IClientDefinition, TClientDefinition>();
-            MaskinportenHttpClientConfigHelper.AddHttpClientConfiguration(httpClientName, config);
-        }
-
-        /// <summary>
-        /// Registers a named Maskinporten-enabled HTTP client definition. Use IHttpClientBuilder.AddMaskinportenHttpMessageHandler
-        /// to attach it to a HttpClient
-        /// </summary>
-        /// <typeparam name="TClientDefinition">The client definition</typeparam>
-        /// <typeparam name="THttpClient">The HTTP client type</typeparam>
-        /// <param name="services">Service collection</param>
-        /// <param name="config">Configuration to use</param>
-        public static void RegisterMaskinportenHttpClient<TClientDefinition, THttpClient>(this IServiceCollection services,
-            IConfiguration config)
-            where TClientDefinition : class, IClientDefinition
-            where THttpClient : class
-        {
-            AddMaskinportenClientCommon(services);
-            services.AddSingleton<IClientDefinition, TClientDefinition>();
-            MaskinportenHttpClientConfigHelper.AddHttpClientConfiguration<THttpClient>(config);
+            MaskinportenClientDefinitionHelper.AddClientDefinitionInstance(clientDefinitionKey, config);
         }
 
         /// <summary>
@@ -60,14 +43,14 @@ namespace Altinn.ApiClients.Maskinporten.Extensions
         /// </summary>
         /// <typeparam name="TClientDefinition">The client definition</typeparam>
         /// <param name="services">Service collection</param>
-        /// <param name="httpClientName">Name of HTTP client</param>
+        /// <param name="httpClientName">Name of HTTP client.</param>
         /// <param name="config">Configuration to use</param>
         /// <param name="configureClientDefinition">Delegate for configuring the client definition</param>
         public static IHttpClientBuilder AddMaskinportenHttpClient<TClientDefinition>(this IServiceCollection services,
             string httpClientName, IConfiguration config, Action<TClientDefinition> configureClientDefinition = null)
             where TClientDefinition : class, IClientDefinition
         {
-            services.RegisterMaskinportenHttpClient<TClientDefinition>(httpClientName, config);
+            services.RegisterMaskinportenClientDefinition<TClientDefinition>(httpClientName, config);
             return services.AddHttpClient(httpClientName)
                 .AddMaskinportenHttpMessageHandler(httpClientName, configureClientDefinition);
         }
@@ -85,7 +68,7 @@ namespace Altinn.ApiClients.Maskinporten.Extensions
             where TClientDefinition : class, IClientDefinition
             where THttpClient : class
         {
-            services.RegisterMaskinportenHttpClient<TClientDefinition, THttpClient>(config);
+            services.RegisterMaskinportenClientDefinition<TClientDefinition>(typeof(THttpClient).FullName, config);
 
             return services.AddHttpClient<THttpClient>()
                 .AddMaskinportenHttpMessageHandler<TClientDefinition, THttpClient>(configureClientDefinition);
