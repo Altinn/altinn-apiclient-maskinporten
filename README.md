@@ -23,11 +23,11 @@ Here is an example with a both a [named](https://docs.microsoft.com/en-us/aspnet
 ```c#
 // Named client
 services.AddMaskinportenHttpClient<SettingsJwkClientDefinition>("myhttpclient",
-    Configuration.GetSection("MaskinportenSettings"));
+  Configuration.GetSection("MaskinportenSettings"));
 
 // Typed client (MyMaskinportenHttpClient is any class accepting a HttpClient paramter in its constructor)
 services.AddMaskinportenHttpClient<SettingsJwkClientDefinition, MyMaskinportenHttpClient>(
-    Configuration.GetSection("MaskinportenSettings")); 
+  Configuration.GetSection("MaskinportenSettings")); 
 
 // Another typed client, using the same app settings, but overriding the setting for Altinn token exchange
 services.AddMaskinportenHttpClient<SettingsJwkClientDefinition, MyMaskinportenHttpClient>(
@@ -35,6 +35,22 @@ services.AddMaskinportenHttpClient<SettingsJwkClientDefinition, MyMaskinportenHt
 {
     clientDefinition.ClientSettings.ExhangeToAltinnToken = true;
 });
+
+// You can chain additional handlers or configure the client if required 
+services.AddMaskinportenHttpClient<SettingsJwkClientDefinition, MyMaskinportenHttpClient>(
+  Configuration.GetSection("MaskinportenSettings))
+    .AddHttpMessageHandler(sp => ...)
+    .ConfigureHttpClient(client => ...)
+            
+// Registering av Maskinporten-powered client without adding it to HttpClientFactory / DIC
+services.RegisterMaskinportenHttpClient<SettingsJwkClientDefinition, MyMaskinportenHttpClient>(
+  Configuration.GetSection("MaskinportenSettingsForSomeExternalApi"));
+
+// This can then be added as a HttpMessageHandler to any IClientBuilder. This is
+// useful if you're already using a client builder (DAN, Polly, Refit etc).
+services.AddHttpClient<MyMaskinportenHttpClient>()
+    .AddMaskinportenHttpMessageHandler<SettingsJwkClientDefinition, MyMaskinportenHttpClient>();
+
 
 ```
 2. Configure Maskinporten environment in appsetting.json
