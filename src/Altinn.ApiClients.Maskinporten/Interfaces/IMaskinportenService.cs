@@ -26,5 +26,10 @@ namespace Altinn.ApiClients.Maskinporten.Interfaces
         /// Generates a access token based on supplied definition containing settings and secrets.
         /// </summary>
         Task<TokenResponse> GetToken(IClientDefinition clientDefinition, bool disableCaching = false);
+
+        /// <summary>
+        /// Exchanges a Maskinporten access token to a Altinn token.
+        /// </summary>
+        Task<TokenResponse> ExchangeToAltinnToken(TokenResponse tokenResponse, string environment, string userName = null, string password = null, bool disableCaching = false, bool isTestOrg = false);
     }
 }
