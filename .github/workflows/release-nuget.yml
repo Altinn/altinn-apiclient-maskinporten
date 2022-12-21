@@ -2,9 +2,10 @@
 name: Release Nuget
 
 on:
+  workflow_dispatch:
   push:
     tags:
-    - "v[0-9]+.[0-9]+.[0-9]+"
+    - "v[0-9]+.[0-9]+.[0-9]+.*"
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -13,27 +14,27 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v2
-    - name: Verify commit exists in origin/main
+    - name: Setup build environment
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: '5.0.x'
+    - name: Set VERSION variable from latest tag
       run: |
-        git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
-        git branch --remote --contains | grep origin/main
-    - name: Set VERSION variable from tag
-      run: echo "VERSION=${GITHUB_REF/refs\/tags\/v/}" >> $GITHUB_ENV
-    - name: Set SOLUTION variable to point to solution file
+        LATEST_TAG=$(git fetch --tags && git for-each-ref --sort=creatordate --format '%(refname)' refs/tags | tail -n 1)
+        if [[ "${LATEST_TAG}" == "" ]]; then echo "Unable to determine latest tag! Exiting"; exit 1; fi
+        echo "LATEST_TAG: ${LATEST_TAG}"
+        VERSION=${LATEST_TAG/refs\/tags\/v/}
+        echo "VERSION: ${VERSION}"
+        echo "VERSION=${VERSION}" >> $GITHUB_ENV
+    - name: Set PROJECT variable to point to solution file
       run: |
-        SOLUTION=$(find . -name '*.sln' -printf "%p" -quit)
-        echo "SOLUTION=${SOLUTION}" >> $GITHUB_ENV
+        PROJECT=$(find . -name 'Altinn.ApiClients.Maskinporten.csproj' -printf "%p" -quit)
+        echo "PROJECT=${PROJECT}" >> $GITHUB_ENV
     - name: Build
-      run: dotnet build --configuration Release /p:Version=${VERSION} ${SOLUTION}
+      run: dotnet build --configuration Release /p:Version=${VERSION} ${PROJECT}
     - name: Pack with debug symbols
-      run: dotnet pack --configuration Release /p:Version=${VERSION} -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg --output . ${SOLUTION}
-    - name: Push
-      run: dotnet nuget push *.${VERSION}.nupkg --source https://nuget.pkg.github.com/${GITHUB_REPOSITORY%/*}/index.json --api-key ${GITHUB_TOKEN}
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: dotnet pack --configuration Release /p:Version=${VERSION} -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg --output . ${PROJECT}
     - name: Push to nuget.org
       env:
         NUGET_ORG_API_KEY: ${{secrets.NUGET_ORG_API_KEY}}
-      if: env.NUGET_ORG_API_KEY != null
-      run: dotnet nuget push *.${VERSION}.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_ORG_API_KEY }}        
-        
+      run: dotnet nuget push *.${VERSION}.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_ORG_API_KEY }}
