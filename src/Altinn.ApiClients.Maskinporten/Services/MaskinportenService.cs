@@ -38,22 +38,22 @@ namespace Altinn.ApiClients.Maskinporten.Services
             _tokenCacheProvider = tokenCacheProvider;
         }
 
-        public async Task<TokenResponse> GetToken(X509Certificate2 cert, string environment, string clientId, string scope, string resource, string consumerOrg = null, bool disableCaching = false)
+        public async Task<TokenResponse> GetToken(X509Certificate2 cert, string environment, string clientId, string scope, string resource, string consumerOrgNo = null, bool disableCaching = false)
         {
-            return await GetToken(cert, null, environment, clientId, scope, resource, consumerOrg, disableCaching);
+            return await GetToken(cert, null, environment, clientId, scope, resource, consumerOrgNo, disableCaching);
         }
 
-        public async Task<TokenResponse> GetToken(JsonWebKey jwk, string environment, string clientId, string scope, string resource, string consumerOrg = null, bool disableCaching = false)
+        public async Task<TokenResponse> GetToken(JsonWebKey jwk, string environment, string clientId, string scope, string resource, string consumerOrgNo = null, bool disableCaching = false)
         {
-            return await GetToken(null, jwk, environment, clientId, scope, resource, consumerOrg, disableCaching);
+            return await GetToken(null, jwk, environment, clientId, scope, resource, consumerOrgNo, disableCaching);
         }
 
-        public async Task<TokenResponse> GetToken(string base64EncodedJwk, string environment, string clientId, string scope, string resource, string consumerOrg = null, bool disableCaching = false)
+        public async Task<TokenResponse> GetToken(string base64EncodedJwk, string environment, string clientId, string scope, string resource, string consumerOrgNo = null, bool disableCaching = false)
         {
             byte[] base64EncodedBytes = Convert.FromBase64String(base64EncodedJwk);
             string jwkjson = Encoding.UTF8.GetString(base64EncodedBytes);
             JsonWebKey jwk = new JsonWebKey(jwkjson);
-            return await GetToken(null, jwk, environment, clientId, scope, resource, consumerOrg, disableCaching);
+            return await GetToken(null, jwk, environment, clientId, scope, resource, consumerOrgNo, disableCaching);
         }
 
         public async Task<TokenResponse> GetToken(IClientDefinition clientDefinition, bool disableCaching = false)
