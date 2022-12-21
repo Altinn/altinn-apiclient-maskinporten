@@ -30,7 +30,7 @@ namespace Altinn.ApiClients.Maskinporten.Config
         public string CertificatePkcs12Path { get; set; }
 
         /// <summary>
-        /// Secrete to X.509 certificate with private key in PKCS#12-file 
+        /// Secret to X.509 certificate with private key in PKCS#12-file
         /// </summary>
         public string CertificatePkcs12Password { get; set; }
 
@@ -50,12 +50,17 @@ namespace Altinn.ApiClients.Maskinporten.Config
         public string EncodedX509 { get; set; }
 
         /// <summary>
-        /// Optional enterprise username for token enrichment
+        /// Optional. Consumer organization number for Maskinporten-based delegations
+        /// </summary>
+        public string ConsumerOrgNo { get; set; }
+
+        /// <summary>
+        /// Optional. Enterprise username for token enrichment
         /// </summary>
         public string EnterpriseUserName { get; set; }
 
         /// <summary>
-        /// Optional enterprise password for token enrichment
+        /// Optional. Enterprise password for token enrichment
         /// </summary>
         public string EnterpriseUserPassword { get; set; }
 

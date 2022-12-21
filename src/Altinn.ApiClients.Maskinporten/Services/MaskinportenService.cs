@@ -29,7 +29,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
         private bool _enableDebugLogging;
 
         public MaskinportenService(HttpClient httpClient,
-            ILogger<IMaskinportenService> logger,
+            ILogger<MaskinportenService> logger,
             ITokenCacheProvider tokenCacheProvider)
         {
             httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
@@ -38,22 +38,22 @@ namespace Altinn.ApiClients.Maskinporten.Services
             _tokenCacheProvider = tokenCacheProvider;
         }
 
-        public async Task<TokenResponse> GetToken(X509Certificate2 cert, string environment, string clientId, string scope, string resource, bool disableCaching = false)
+        public async Task<TokenResponse> GetToken(X509Certificate2 cert, string environment, string clientId, string scope, string resource, string consumerOrg = null, bool disableCaching = false)
         {
-            return await GetToken(cert, null, environment, clientId, scope, resource, disableCaching);
+            return await GetToken(cert, null, environment, clientId, scope, resource, consumerOrg, disableCaching);
         }
 
-        public async Task<TokenResponse> GetToken(JsonWebKey jwk, string environment, string clientId, string scope, string resource, bool disableCaching = false)
+        public async Task<TokenResponse> GetToken(JsonWebKey jwk, string environment, string clientId, string scope, string resource, string consumerOrg = null, bool disableCaching = false)
         {
-            return await GetToken(null, jwk, environment, clientId, scope, resource, disableCaching);
+            return await GetToken(null, jwk, environment, clientId, scope, resource, consumerOrg, disableCaching);
         }
 
-        public async Task<TokenResponse> GetToken(string base64EncodedJwk, string environment, string clientId, string scope, string resource, bool disableCaching = false)
+        public async Task<TokenResponse> GetToken(string base64EncodedJwk, string environment, string clientId, string scope, string resource, string consumerOrg = null, bool disableCaching = false)
         {
             byte[] base64EncodedBytes = Convert.FromBase64String(base64EncodedJwk);
             string jwkjson = Encoding.UTF8.GetString(base64EncodedBytes);
             JsonWebKey jwk = new JsonWebKey(jwkjson);
-            return await GetToken(null, jwk, environment, clientId, scope, resource, disableCaching);
+            return await GetToken(null, jwk, environment, clientId, scope, resource, consumerOrg, disableCaching);
         }
 
         public async Task<TokenResponse> GetToken(IClientDefinition clientDefinition, bool disableCaching = false)
@@ -72,14 +72,18 @@ namespace Altinn.ApiClients.Maskinporten.Services
             if (clientSecrets.ClientKey != null)
             {
                 DebugLog($"GetToken: Using JWK, N={clientSecrets.ClientKey.N}");
-                tokenResponse = await GetToken(null, clientSecrets.ClientKey, clientDefinition.ClientSettings.Environment, clientDefinition.ClientSettings.ClientId, clientDefinition.ClientSettings.Scope, clientDefinition.ClientSettings.Resource, disableCaching);
+                tokenResponse = await GetToken(null, clientSecrets.ClientKey,
+                    clientDefinition.ClientSettings.Environment, clientDefinition.ClientSettings.ClientId,
+                    clientDefinition.ClientSettings.Scope, clientDefinition.ClientSettings.Resource,
+                    clientDefinition.ClientSettings.ConsumerOrgNo, disableCaching);
             }
             else if (clientSecrets.ClientCertificate != null)
             {
                 DebugLog($"GetToken: Using certificate, subject={clientSecrets.ClientCertificate.Subject}");
                 tokenResponse = await GetToken(clientSecrets.ClientCertificate, null,
                     clientDefinition.ClientSettings.Environment, clientDefinition.ClientSettings.ClientId,
-                    clientDefinition.ClientSettings.Scope, clientDefinition.ClientSettings.Resource, disableCaching);
+                    clientDefinition.ClientSettings.Scope, clientDefinition.ClientSettings.Resource,
+                    clientDefinition.ClientSettings.ConsumerOrgNo, disableCaching);
             }
             else
             {
@@ -192,7 +196,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
             return BitConverter.ToString(md5.ComputeHash(Encoding.UTF8.GetBytes(tokenResponse.AccessToken + userName)));
         }
 
-        private string GetJwtAssertion(X509Certificate2 cert, JsonWebKey jwk, string environment, string clientId, string scope, string resource)
+        private string GetJwtAssertion(X509Certificate2 cert, JsonWebKey jwk, string environment, string clientId, string scope, string resource, string consumerOrg)
         {
             DateTimeOffset dateTimeOffset = new DateTimeOffset(DateTime.UtcNow);
             JwtHeader header = cert != null ? GetHeader(cert) : GetHeader(jwk);
@@ -212,6 +216,11 @@ namespace Altinn.ApiClients.Maskinporten.Services
                 payload.Add("resource", resource);
             }
 
+            if (!string.IsNullOrEmpty(consumerOrg))
+            {
+                payload.Add("consumer_org", consumerOrg);
+            }
+
             JwtSecurityToken securityToken = new JwtSecurityToken(header, payload);
             JwtSecurityTokenHandler handler = new JwtSecurityTokenHandler();
 
@@ -220,9 +229,9 @@ namespace Altinn.ApiClients.Maskinporten.Services
             return assertion;
         }
 
-        private async Task<TokenResponse> GetToken(X509Certificate2 cert, JsonWebKey jwk, string environment, string clientId, string scope, string resource, bool disableCaching)
+        private async Task<TokenResponse> GetToken(X509Certificate2 cert, JsonWebKey jwk, string environment, string clientId, string scope, string resource, string consumerOrg, bool disableCaching)
         {
-            string cacheKey = $"{clientId}-{scope}-{resource}";
+            string cacheKey = $"{clientId}-{scope}-{resource}-{consumerOrg}";
 
             await SemaphoreSlim.WaitAsync();
             try
@@ -239,7 +248,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
 
                 DebugLog("GetToken: cache miss or cache disabled");
 
-                string jwtAssertion = GetJwtAssertion(cert, jwk, environment, clientId, scope, resource);
+                string jwtAssertion = GetJwtAssertion(cert, jwk, environment, clientId, scope, resource, consumerOrg);
                 HttpRequestMessage requestMessage = new HttpRequestMessage()
                 {
                     Method = HttpMethod.Post,
@@ -285,8 +294,8 @@ namespace Altinn.ApiClients.Maskinporten.Services
         {
             FormUrlEncodedContent formContent = new FormUrlEncodedContent(new List<KeyValuePair<string, string>>
             {
-                new KeyValuePair<string, string>("grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer"),
-                new KeyValuePair<string, string>("assertion", assertion),
+                new("grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer"),
+                new("assertion", assertion),
             });
 
             return formContent;

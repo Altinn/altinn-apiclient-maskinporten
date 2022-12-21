@@ -10,17 +10,17 @@ namespace Altinn.ApiClients.Maskinporten.Interfaces
         /// <summary>
         /// Generates a Maskinporten access token using a JsonWebKey
         /// </summary>
-        Task<TokenResponse> GetToken(JsonWebKey jwk, string environment, string clientId, string scope, string resource, bool disableCaching = false);
+        Task<TokenResponse> GetToken(JsonWebKey jwk, string environment, string clientId, string scope, string resource, string consumerOrg = null, bool disableCaching = false);
 
         /// <summary>
         /// Generates a Maskinporten access token using a X509Certificate
         /// </summary>
-        Task<TokenResponse> GetToken(X509Certificate2 cert, string environment, string clientId, string scope, string resource, bool disableCaching = false);
+        Task<TokenResponse> GetToken(X509Certificate2 cert, string environment, string clientId, string scope, string resource, string consumerOrg = null, bool disableCaching = false);
 
         /// <summary>
         /// Generates a Maskinporten access token using a base64encoded JsonWebKey
         /// </summary>
-        Task<TokenResponse> GetToken(string base64EncodedJWK, string environment, string clientId, string scope, string resource, bool disableCaching = false);
+        Task<TokenResponse> GetToken(string base64EncodedJWK, string environment, string clientId, string scope, string resource, string consumerOrg = null, bool disableCaching = false);
 
         /// <summary>
         /// Generates a access token based on supplied definition containing settings and secrets.
