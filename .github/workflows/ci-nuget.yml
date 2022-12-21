@@ -26,8 +26,6 @@ jobs:
         echo "SOLUTION=${SOLUTION}" >> $GITHUB_ENV
     - name: Build
       run: dotnet build --configuration Release /p:Version=${VERSION} ${SOLUTION}
-    - name: Test
-      run: dotnet test --configuration Release /p:Version=${VERSION} --no-build ${SOLUTION}
     - name: Pack with debug symbols
       run: dotnet pack --configuration Release /p:Version=${VERSION} -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg --output . ${SOLUTION}
     - name: Push
