@@ -21,7 +21,9 @@ namespace Altinn.ApiClients.Maskinporten.Handlers
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            if (request.Headers.Authorization == null)
+            if (request.Headers.Authorization == null ||
+                (_clientDefinition.ClientSettings.OverwriteAuthorizationHeader .HasValue &&
+                _clientDefinition.ClientSettings.OverwriteAuthorizationHeader .Value))
             {
                 TokenResponse tokenResponse = await GetTokenResponse(cancellationToken);
                 if (tokenResponse != null)

@@ -78,5 +78,10 @@ namespace Altinn.ApiClients.Maskinporten.Config
         /// Optional. Enabels verbose logging that should only be enabled when troubleshooting. Will cause logging (with severity "Information") of assertions.  
         /// </summary>
         public bool? EnableDebugLogging { get; set; }
+
+        /// <summary>
+        /// Optional. Overwrites existing Authorization-header if set. Default: ignore existing Authorization-header.
+        /// </summary>
+        public bool? OverwriteAuthorizationHeader { get; set; }
     }
 }
