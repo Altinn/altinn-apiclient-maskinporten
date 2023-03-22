@@ -80,8 +80,8 @@ namespace Altinn.ApiClients.Maskinporten.Config
         public bool? EnableDebugLogging { get; set; }
 
         /// <summary>
-        /// Optional. Enables renewing of the Bearer JWT, even if it already exists in the Authorization-header
+        /// Optional. Overwrites existing Authorization-header if set. Default: ignore existing Authorization-header.
         /// </summary>
-        public bool? AlwaysRenewToken { get; set; }
+        public bool? OverwriteAuthorizationHeader { get; set; }
     }
 }
