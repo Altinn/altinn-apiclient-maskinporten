@@ -78,5 +78,10 @@ namespace Altinn.ApiClients.Maskinporten.Config
         /// Optional. Enabels verbose logging that should only be enabled when troubleshooting. Will cause logging (with severity "Information") of assertions.  
         /// </summary>
         public bool? EnableDebugLogging { get; set; }
+
+        /// <summary>
+        /// Optional. Enables renewing of the Bearer JWT, even if it already exists in the Authorization-header
+        /// </summary>
+        public bool? AlwaysRenewToken { get; set; }
     }
 }
