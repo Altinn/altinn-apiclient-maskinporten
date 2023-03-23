@@ -214,6 +214,13 @@ If you require an Altinn Exchanged token for the TTD organisation, this is suppo
 "UseAltinnTestOrg": true
 ```
 
+The environment for the token exchange is by default derived from the Maskinporten environment. This can also be explicitly configured:
+
+```jsonc
+// Valid values: at21, at22, at23, at24, tt02, prod
+"TokenExchangeEnvironment": "at24"
+```
+
 These settings can also be supplied by providing a delegate like:
 
 ```c#
@@ -222,6 +229,7 @@ services.AddMaskinportenHttpClient<SettingsJwkClientDefinition, MyMaskinportenHt
 {
     clientDefinition.ClientSettings.ExhangeToAltinnToken = true;
     clientDefinition.ClientSettings.UseAltinnTestOrg = true;
+    clientDefinition.ClientSettings.TokenExchangeEnvironment = "at24";
 });
 ```
 
