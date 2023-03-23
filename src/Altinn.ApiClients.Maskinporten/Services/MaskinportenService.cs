@@ -90,11 +90,15 @@ namespace Altinn.ApiClients.Maskinporten.Services
                 throw new Exception("MaskinportenService: Missing settings!");
             }
 
+            // Check if we have an explicitly set environment for token exchange, else derive it from Maskinporten environment
+            string tokenExchangeEnvironment =
+                clientDefinition.ClientSettings.TokenExchangeEnvironment ?? clientDefinition.ClientSettings.Environment;
+
             if (!string.IsNullOrEmpty(clientDefinition.ClientSettings.EnterpriseUserName) &&
                 !string.IsNullOrEmpty(clientDefinition.ClientSettings.EnterpriseUserPassword))
             {
                 DebugLog($"GetToken: Using enterprise username and password");
-                return await ExchangeToAltinnToken(tokenResponse, clientDefinition.ClientSettings.Environment, clientDefinition.ClientSettings.EnterpriseUserName,
+                return await ExchangeToAltinnToken(tokenResponse, tokenExchangeEnvironment, clientDefinition.ClientSettings.EnterpriseUserName,
                     clientDefinition.ClientSettings.EnterpriseUserPassword, disableCaching);
             }
 
@@ -105,12 +109,12 @@ namespace Altinn.ApiClients.Maskinporten.Services
                 {
                     return await ExchangeToAltinnToken(
                         tokenResponse,
-                        clientDefinition.ClientSettings.Environment,
+                        tokenExchangeEnvironment,
                         disableCaching: disableCaching,
                         isTestOrg: clientDefinition.ClientSettings.UseAltinnTestOrg.Value);
                 }
 
-                return await ExchangeToAltinnToken(tokenResponse, clientDefinition.ClientSettings.Environment, disableCaching: disableCaching);
+                return await ExchangeToAltinnToken(tokenResponse, tokenExchangeEnvironment, disableCaching: disableCaching);
             }
 
             return tokenResponse;
@@ -150,7 +154,6 @@ namespace Altinn.ApiClients.Maskinporten.Services
                 if (isTestOrg)
                 {
                     DebugLog("ExchangeToAltinnToken: isTestOrg is true");
-
                     requestMessage.RequestUri = new Uri(requestMessage.RequestUri + "?test=true");
                 }
 
@@ -173,7 +176,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
                     DebugLog("ExchangeToAltinnToken: not setting X-Altinn-EnterpriseUser-Authentication, missing settings?");
                 }
 
-                DebugLog("ExchangeToAltinnToken: Attempting token exchange");
+                DebugLog($"ExchangeToAltinnToken: Attempting token exchange at {requestMessage.RequestUri}");
 
                 exchangedTokenResponse.AccessToken = await PerformRequest<string>(requestMessage);
 
@@ -224,7 +227,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
             JwtSecurityToken securityToken = new JwtSecurityToken(header, payload);
             JwtSecurityTokenHandler handler = new JwtSecurityTokenHandler();
 
-            var assertion = handler.WriteToken(securityToken);
+            string assertion = handler.WriteToken(securityToken);
             DebugLog($"GetJwtAssertion: {assertion}");
             return assertion;
         }
@@ -344,7 +347,8 @@ namespace Altinn.ApiClients.Maskinporten.Services
                 "prod" => "https://maskinporten.no/",
                 "ver1" => "https://ver1.maskinporten.no/",
                 "ver2" => "https://ver2.maskinporten.no/",
-                _ => throw new ArgumentException("Invalid environment setting. Valid values: prod, ver1, ver2")
+                "test" => "https://test.maskinporten.no/",
+                _ => throw new ArgumentException("Invalid environment setting. Valid values: prod, ver1, ver2, test")
             };
         }
 
@@ -355,7 +359,8 @@ namespace Altinn.ApiClients.Maskinporten.Services
                 "prod" => "https://maskinporten.no/token",
                 "ver1" => "https://ver1.maskinporten.no/token",
                 "ver2" => "https://ver2.maskinporten.no/token",
-                _ => throw new ArgumentException("Invalid environment setting. Valid values: prod, ver1, ver2")
+                "test" => "https://test.maskinporten.no/token",
+                _ => throw new ArgumentException("Invalid environment setting. Valid values: prod, ver1, ver2, test")
             };
         }
 
@@ -364,9 +369,16 @@ namespace Altinn.ApiClients.Maskinporten.Services
             return environment switch
             {
                 "prod" => "https://platform.altinn.no/authentication/api/v1/exchange/maskinporten",
+                "tt02" => "https://platform.tt02.altinn.no/authentication/api/v1/exchange/maskinporten",
+                "at21" => "https://platform.at21.altinn.cloud/authentication/api/v1/exchange/maskinporten",
+                "at22" => "https://platform.at22.altinn.cloud/authentication/api/v1/exchange/maskinporten",
+                "at23" => "https://platform.at23.altinn.cloud/authentication/api/v1/exchange/maskinporten",
+                "at24" => "https://platform.at24.altinn.cloud/authentication/api/v1/exchange/maskinporten",
+                // Supported for backward compatibility
                 "ver1" => "https://platform.tt02.altinn.no/authentication/api/v1/exchange/maskinporten",
                 "ver2" => "https://platform.tt02.altinn.no/authentication/api/v1/exchange/maskinporten",
-                _ => throw new ArgumentException("Invalid environment setting. Valid values: prod, ver1, ver2")
+                "test" => "https://platform.tt02.altinn.no/authentication/api/v1/exchange/maskinporten",
+                _ => throw new ArgumentException("Invalid environment setting. Valid values: prod, tt02, at21, at22, at23, at24")
             };
         }
     }

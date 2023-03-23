@@ -20,7 +20,7 @@ namespace Altinn.ApiClients.Maskinporten.Config
         public string Resource { get; set; }
 
         /// <summary>
-        /// The Maskinporten environment. Valid values are ver1, ver2 or prod
+        /// The Maskinporten environment. Valid values are ver1, ver2, test or prod
         /// </summary>
         public string Environment { get; set; }
 
@@ -68,6 +68,11 @@ namespace Altinn.ApiClients.Maskinporten.Config
         /// Optional. Enables Altinn token exchange without enterprise user authentication. Ignored if EnterpriseUserName/Password is supplied (which implies token exchange).
         /// </summary>
         public bool? ExhangeToAltinnToken { get; set; }
+
+        /// <summary>
+        /// Optional. The Altinn Token Exchange environment. Valid values are prod, tt02, at21, at22, at23, at24. Default: derive from 'Environment'
+        /// </summary>
+        public string TokenExchangeEnvironment { get; set; }
 
         /// <summary>
         /// Optional. Enables the DigDir token to be exchanged into a Altinn token for the test organisation.
