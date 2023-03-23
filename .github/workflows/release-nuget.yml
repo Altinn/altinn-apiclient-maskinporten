@@ -13,11 +13,11 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
     - name: Setup build environment
-      uses: actions/setup-dotnet@v1
+      uses: actions/setup-dotnet@v3
       with:
-        dotnet-version: '5.0.x'
+        dotnet-version: '6.0.x'
     - name: Set VERSION variable from latest tag
       run: |
         LATEST_TAG=$(git fetch --tags && git for-each-ref --sort=creatordate --format '%(refname)' refs/tags | tail -n 1)
