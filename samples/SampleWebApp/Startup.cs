@@ -58,6 +58,7 @@ namespace SampleWebApp
                 Configuration.GetSection("MyCustomClientDefinition"), clientDefinition =>
                 {
                     // Any additional custom settings and/or fields in your custom client definition should be populated in the configureClientDefinition delegate
+                    clientDefinition.MyCustomClientDefinitionSettings = new MyCustomClientDefinitionSettings();
                     Configuration.GetSection("MyCustomClientDefinition").Bind(clientDefinition.MyCustomClientDefinitionSettings);
                 });
 
