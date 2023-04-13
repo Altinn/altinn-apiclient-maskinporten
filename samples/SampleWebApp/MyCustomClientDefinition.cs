@@ -38,7 +38,7 @@ namespace SampleWebApp
                 new DefaultAzureCredential());
 
             var secret = await secretClient.GetSecretAsync(myCustomClientDefinitionSettings.SecretName);
-            var base64Str = secret.Value.ToString();
+            var base64Str = secret.HasValue ? secret.Value.Value : null;
             if (base64Str == null)
             {
                 throw new ApplicationException("Unable to fetch cert from key vault");
