@@ -1,4 +1,4 @@
-﻿using Altinn.ApiClients.Maskinporten.Models;
+using Altinn.ApiClients.Maskinporten.Models;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -22,24 +22,28 @@ namespace Altinn.ApiClients.Maskinporten.Handlers
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             if (request.Headers.Authorization == null ||
-                (_clientDefinition.ClientSettings.OverwriteAuthorizationHeader .HasValue &&
-                _clientDefinition.ClientSettings.OverwriteAuthorizationHeader .Value))
+                (_clientDefinition.ClientSettings.OverwriteAuthorizationHeader.HasValue &&
+                _clientDefinition.ClientSettings.OverwriteAuthorizationHeader.Value))
             {
                 TokenResponse tokenResponse = await GetTokenResponse(cancellationToken);
-                if (tokenResponse != null)
+                if (tokenResponse != null) 
+                {
                     request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenResponse.AccessToken);
+                }
             }
 
             HttpResponseMessage response = await base.SendAsync(request, cancellationToken);
 
-            if (response.StatusCode != HttpStatusCode.Unauthorized) return response;
+            if (response.StatusCode != HttpStatusCode.Unauthorized) 
             {
-                TokenResponse tokenResponse = await RefreshTokenResponse(cancellationToken);
-                if (tokenResponse != null)
-                {
-                    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenResponse.AccessToken);
-                    response = await base.SendAsync(request, cancellationToken);
-                }
+                return response;
+            }
+
+            TokenResponse tokenResponse = await RefreshTokenResponse(cancellationToken);
+            if (tokenResponse != null)
+            {
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenResponse.AccessToken);
+                response = await base.SendAsync(request, cancellationToken);
             }
 
             return response;
