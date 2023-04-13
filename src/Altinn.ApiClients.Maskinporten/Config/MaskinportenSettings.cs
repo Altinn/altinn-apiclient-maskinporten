@@ -2,7 +2,7 @@
 
 namespace Altinn.ApiClients.Maskinporten.Config
 {
-    public class MaskinportenSettings
+    public class MaskinportenSettings : IMaskinportenSettings
     {
         /// <summary>
         /// ClientID to use

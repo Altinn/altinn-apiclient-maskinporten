@@ -21,11 +21,12 @@ namespace Altinn.ApiClients.Maskinporten.Handlers
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
+            TokenResponse tokenResponse;
             if (request.Headers.Authorization == null ||
                 (_clientDefinition.ClientSettings.OverwriteAuthorizationHeader.HasValue &&
                 _clientDefinition.ClientSettings.OverwriteAuthorizationHeader.Value))
             {
-                TokenResponse tokenResponse = await GetTokenResponse(cancellationToken);
+                tokenResponse = await GetTokenResponse(cancellationToken);
                 if (tokenResponse != null) 
                 {
                     request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenResponse.AccessToken);
@@ -39,7 +40,7 @@ namespace Altinn.ApiClients.Maskinporten.Handlers
                 return response;
             }
 
-            TokenResponse tokenResponse = await RefreshTokenResponse(cancellationToken);
+            tokenResponse = await RefreshTokenResponse(cancellationToken);
             if (tokenResponse != null)
             {
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenResponse.AccessToken);

@@ -9,7 +9,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
 {
     public class CertificateStoreClientDefinition : IClientDefinition
     {
-        public MaskinportenSettings ClientSettings { get; set; }
+        public IMaskinportenSettings ClientSettings { get; set; }
 
         public Task<ClientSecrets> GetClientSecrets()
         {

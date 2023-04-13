@@ -1,3 +1,4 @@
+using Altinn.ApiClients.Maskinporten.Config;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -6,6 +7,7 @@ using Microsoft.Extensions.Hosting;
 using Altinn.ApiClients.Maskinporten.Interfaces;
 using Altinn.ApiClients.Maskinporten.Services;
 using Altinn.ApiClients.Maskinporten.Extensions;
+using SampleWebApp.Config;
 
 namespace SampleWebApp
 {
@@ -31,18 +33,21 @@ namespace SampleWebApp
             // will be used.
             services.AddSingleton<ITokenCacheProvider, FileTokenCacheProvider>();
 
+            
             // Using a typed HttpClient is the preferred way of setting up a MaskinportenHttpClient;
-            services.AddMaskinportenHttpClient<SettingsJwkClientDefinition, MyMaskinportenHttpClient>(
-                Configuration.GetSection("MaskinportenSettingsForSomeExternalApi"));
-
+            var maskinportenSettingsForSomeExternalApi = new MaskinportenSettings();
+            Configuration.GetSection("MaskinportenSettingsForSomeExternalApi").Bind(maskinportenSettingsForSomeExternalApi);
+            services.AddMaskinportenHttpClient<SettingsJwkClientDefinition, MyMaskinportenHttpClient>(maskinportenSettingsForSomeExternalApi);
+            
             // If you need to access multiple APIs requiring different settings (ie. scopes) you must supply a different 
             // typed client (may inherit a common base client)
-            services.AddMaskinportenHttpClient<SettingsJwkClientDefinition, MyOtherMaskinportenHttpClient>(
-                Configuration.GetSection("MaskinportenSettingsForSomeOtherExternalApi"));
+            var maskinportenSettingsForSomeOtherExternalApi = new MaskinportenSettings();
+            Configuration.GetSection("MaskinportenSettingsForSomeOtherExternalApi").Bind(maskinportenSettingsForSomeOtherExternalApi);
+            services.AddMaskinportenHttpClient<SettingsJwkClientDefinition, MyOtherMaskinportenHttpClient>(maskinportenSettingsForSomeOtherExternalApi);
 
             // You can reuse application settings for the across different HTTP clients, but override specific settings
             services.AddMaskinportenHttpClient<SettingsJwkClientDefinition, MyThirdMaskinportenHttpClient>(
-                Configuration.GetSection("MaskinportenSettingsForSomeOtherExternalApi"), clientDefinition =>
+                maskinportenSettingsForSomeOtherExternalApi, clientDefinition =>
                 {
                     clientDefinition.ClientSettings.ExhangeToAltinnToken = true;
                     clientDefinition.ClientSettings.Scope =
@@ -50,34 +55,30 @@ namespace SampleWebApp
                 });
 
             // As an alternative, named HTTP clients can be used. 
+            services.AddMaskinportenHttpClient<SettingsJwkClientDefinition>("myhttpclient", maskinportenSettingsForSomeExternalApi);
+
+            // Overloads are provided to send in a IConfiguration instance directly. This will be bound to an instance of MaskinportenSettings. 
             services.AddMaskinportenHttpClient<SettingsJwkClientDefinition>("myhttpclient", 
                 Configuration.GetSection("MaskinportenSettingsForSomeExternalApi"));
-
-            // You can also define your own client definitions:
-            services.AddMaskinportenHttpClient<MyCustomClientDefinition, MyFourthMaskinportenHttpClient>(
-                Configuration.GetSection("MyCustomClientDefinition"), clientDefinition =>
-                {
-                    // Any additional custom settings and/or fields in your custom client definition should be populated in the configureClientDefinition delegate
-                    clientDefinition.MyCustomClientDefinitionSettings = new MyCustomClientDefinitionSettings();
-                    Configuration.GetSection("MyCustomClientDefinition").Bind(clientDefinition.MyCustomClientDefinitionSettings);
-                });
+            
+            // You can also define your own client definitions with custom settings, which should inherit MaskinportenSettings (or implement IMaskinportenSettings)
+            var myCustomClientDefinitionSettings = new MyCustomClientDefinitionSettings();
+            Configuration.GetSection("MyCustomClientDefinition").Bind(myCustomClientDefinitionSettings);
+            services.AddMaskinportenHttpClient<MyCustomClientDefinition, MyFourthMaskinportenHttpClient>(myCustomClientDefinitionSettings);
 
             // Named http clients for custom client definitions
-            services.AddMaskinportenHttpClient<MyCustomClientDefinition>("myotherhttpclient", Configuration.GetSection("MyCustomClientDefinition"), clientDefinition =>
-            {
-                Configuration.GetSection("MyCustomClientDefinition").Bind(clientDefinition.MyCustomClientDefinitionSettings);
-            });
+            services.AddMaskinportenHttpClient<MyCustomClientDefinition>("myotherhttpclient", myCustomClientDefinitionSettings);
 
             // You can chain additional handlers or configure the client further if you want
             /*
-            services.AddMaskinportenHttpClient<SettingsJwkClientDefinition, MyMaskinportenHttpClient>(Configuration.GetSection("MaskinportenSettingsForSomeExternalApi"))
+            services.AddMaskinportenHttpClient<SettingsJwkClientDefinition, MyMaskinportenHttpClient>(maskinportenSettingsForSomeExternalApi)
                 .AddHttpMessageHandler(sp => ...)
                 .ConfigureHttpClient(client => ...)
             */
 
             /*
             // Register a client definition and a configuration, identified by some arbitrary string key
-            services.RegisterMaskinportenClientDefinition<SettingsJwkClientDefinition>("my-client-definition-key", Configuration.GetSection("MaskinportenSettingsForSomeExternalApi"));
+            services.RegisterMaskinportenClientDefinition<SettingsJwkClientDefinition>("my-client-definition-key", maskinportenSettingsForSomeExternalApi);
 
             // This can then be added as a HttpMessageHandler to any IClientBuilder (if also using DAN, Polly, Refit etc)
             services.AddHttpClient<MyMaskinportenHttpClient>()
