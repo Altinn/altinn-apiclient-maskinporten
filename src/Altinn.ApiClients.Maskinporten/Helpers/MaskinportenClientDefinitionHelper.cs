@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
-using Microsoft.Extensions.Configuration;
+using Altinn.ApiClients.Maskinporten.Interfaces;
 
 namespace Altinn.ApiClients.Maskinporten.Helpers
 {
@@ -12,12 +12,12 @@ namespace Altinn.ApiClients.Maskinporten.Helpers
     public static class MaskinportenClientDefinitionHelper
     {
         private static readonly List<string> ClientDefinitionInstanceKeys = new();
-        private static readonly List<IConfiguration> Configurations = new();
+        private static readonly List<IMaskinportenSettings> Settings = new();
 
-        public static void AddClientDefinitionInstance(string clientDefinitionKey, IConfiguration configuration)
+        public static void AddClientDefinitionInstance(string clientDefinitionKey, IMaskinportenSettings settings)
         {
             ClientDefinitionInstanceKeys.Add(clientDefinitionKey);
-            Configurations.Add(configuration);
+            Settings.Add(settings);
         }
 
         public static int GetIndexOf(string clientDefinitionKey)
@@ -25,9 +25,9 @@ namespace Altinn.ApiClients.Maskinporten.Helpers
             return ClientDefinitionInstanceKeys.IndexOf(clientDefinitionKey);
         }
 
-        public static IConfiguration GetConfiguration(int index)
+        public static IMaskinportenSettings GetSettingsByIndex(int index)
         {
-            return Configurations.ElementAt(index);
+            return Settings.ElementAt(index);
         }
     }
 }

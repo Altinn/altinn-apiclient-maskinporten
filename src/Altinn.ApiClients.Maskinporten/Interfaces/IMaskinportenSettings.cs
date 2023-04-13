@@ -1,4 +1,4 @@
-﻿namespace Altinn.ApiClients.Maskinporten.Config;
+﻿namespace Altinn.ApiClients.Maskinporten.Interfaces;
 
 public interface IMaskinportenSettings
 {

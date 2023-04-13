@@ -2,11 +2,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
-using Altinn.ApiClients.Maskinporten.Config;
 using Altinn.ApiClients.Maskinporten.Handlers;
 using Altinn.ApiClients.Maskinporten.Helpers;
 using Altinn.ApiClients.Maskinporten.Interfaces;
-using Microsoft.Extensions.Configuration;
 
 namespace Altinn.ApiClients.Maskinporten.Factories
 {
@@ -44,9 +42,7 @@ namespace Altinn.ApiClients.Maskinporten.Factories
         {
             var index = MaskinportenClientDefinitionHelper.GetIndexOf(key);
             var clientDefinition = (TClientDefinition)_clientDefinitions.ElementAt(index);
-            var settings = new MaskinportenSettings();
-            MaskinportenClientDefinitionHelper.GetConfiguration(index).Bind(settings);
-            clientDefinition.ClientSettings = settings;
+            clientDefinition.ClientSettings = MaskinportenClientDefinitionHelper.GetSettingsByIndex(index);
             configureClientDefinition?.Invoke(clientDefinition);
             return new MaskinportenTokenHandler(_maskinportenService, clientDefinition);
         }

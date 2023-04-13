@@ -10,7 +10,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
 {
     public class SettingsJwkClientDefinition : IClientDefinition
     {
-        public MaskinportenSettings ClientSettings { get; set; }
+        public IMaskinportenSettings ClientSettings { get; set; }
 
         public async Task<ClientSecrets> GetClientSecrets()
         {
