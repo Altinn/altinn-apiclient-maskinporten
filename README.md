@@ -18,34 +18,40 @@ You will need to configure a client definition, which is a way of providing the 
 
 Here is an example with a both a [named](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/http-requests?view=aspnetcore-6.0#named-clients) and [typed](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/http-requests?view=aspnetcore-6.0#typed-clients) client using a client definition where the secret is a private RSA key in a JWK supplied in the injected settings.
 
-1. Client needs to configured in `ConfigureServices`, where `services` is a `IServiceCollection`
+1. Client needs to configured in `ConfigureServices`, where `services` is a `IServiceCollection`. Configuration settings for the client is provided as a instance of `MaskinportenSettings` (or any instance implementing `IMaskinportenSettings`). Alternatively, one can pass a `IConfiguration` instance to an overload that will bind this to a `MaskinportenSettings` instance.
 
 ```c#
+
+// We assume `Configuration` is a IConfiguration instance containing the settings from eg. appsettings.json.
+
+var maskinportenSettings = new MaskinportenSettings();
+Configuration.GetSection("MaskinportenSettings").Bind(maskinportenSettings);
+
 // Named client
-services.AddMaskinportenHttpClient<SettingsJwkClientDefinition>("myhttpclient",
-  Configuration.GetSection("MaskinportenSettings"));
+services.AddMaskinportenHttpClient<SettingsJwkClientDefinition>("myhttpclient", maskinportenSettings);
+
+// For convenience you can pass the IConfiguration instance directly
+// services.AddMaskinportenHttpClient<SettingsJwkClientDefinition>("myhttpclient", Configuration.GetSection("MaskinportenSettings"));
 
 // Typed client (MyMaskinportenHttpClient is any class accepting a HttpClient paramter in its constructor)
-services.AddMaskinportenHttpClient<SettingsJwkClientDefinition, MyMaskinportenHttpClient>(
-  Configuration.GetSection("MaskinportenSettings")); 
+services.AddMaskinportenHttpClient<SettingsJwkClientDefinition, MyMaskinportenHttpClient>(maskinportenSettings); 
 
 // Another typed client, using the same app settings, but overriding the setting for Altinn token exchange
 services.AddMaskinportenHttpClient<SettingsJwkClientDefinition, MyMaskinportenHttpClient>(
-  Configuration.GetSection("MaskinportenSettings"), clientDefinition =>
+  maskinportenSettings, clientDefinition =>
 {
     clientDefinition.ClientSettings.ExhangeToAltinnToken = true;
 });
 
 // You can chain additional handlers or configure the client if required 
-services.AddMaskinportenHttpClient<SettingsJwkClientDefinition, MyMaskinportenHttpClient>(
-  Configuration.GetSection("MaskinportenSettings"))
+services.AddMaskinportenHttpClient<SettingsJwkClientDefinition, MyMaskinportenHttpClient>(maskinportenSettings)
     .AddHttpMessageHandler(sp => ...)
     .ConfigureHttpClient(client => ...)
             
 // Registering av Maskinporten-powered client without adding it to HttpClientFactory / DIC
 services.RegisterMaskinportenClientDefinition<SettingsJwkClientDefinition>(
   "my-client-definition-instance-key",
-  Configuration.GetSection("MaskinportenSettings"));
+  maskinportenSettings);
 
 // This can then be added as a HttpMessageHandler to any IClientBuilder. This is
 // useful if you're already using a client builder (DAN, Polly, Refit etc).
@@ -119,7 +125,7 @@ public class MyController : ControllerBase
 
 <details><summary>See examples using the various client definition types</summary>
 
-Below are usage examples. Note that configuration binding (ie. `Configuration.GetSection("somesection")`) is omitted, as are the three mandatory settings that must always be supplied (Environment, ClientId, Scope)
+Below are usage examples. 
 
 ### SettingsJwk
 
@@ -174,6 +180,46 @@ services.AddMaskinportenHttpClient<Pkcs12ClientDefinition>( ... )
   }
 ```
 </details>
+
+## Custom client definitions
+If you need to fetch the secret from some other source, you can provide your own implementation of `IClientDefinition` and pass it a custom `IMaskinportenSettings` instance containing any additional settings your source requires
+
+```c#
+// ---- MyExtendedMaskinportenSettings.cs ---- 
+public class MyExtendedMaskinportenSettings : MaskinportenSettings 
+{ // Extends MaskinportenSettings to avoid having to specify every field in IMaskinportenSettings
+    
+    public string MyCustomSetting { get; set; }
+}
+
+// ---- MyCustomClientDefinition.cs ---- 
+public class MyCustomClientDefinition : IClientDefinition
+{
+    public IMaskinportenSettings ClientSettings { get; set; }
+
+    // The custom client definitions are registered in the DIC as singletons
+    public MyCustomClientDefinition(ILogger<MyCustomClientDefinition> logger)
+    {
+        _logger = logger;
+    }
+
+    public async Task<ClientSecrets> GetClientSecrets()
+    {
+        var myExtendedSettings = (MyExtendedMaskinportenSettings)ClientSettings;
+        // use myExtendedSettings.MyCustomSetting
+        ...
+    }
+}
+
+// ---- Program.cs / Startup.cs ---- 
+var myExtendedMaskinportenSettings = new MyExtendedMaskinportenSettings();
+// We assume `Configuration` is a IConfiguration instance containing the settings from eg. appsettings.json
+// and that `services` is a IServiceCollection
+Configuration.GetSection("ExtendedMaskinportenSettings").Bind(myExtendedMaskinportenSettings);
+
+// Named client using a custom client definition and settings
+services.AddMaskinportenHttpClient<MyCustomClientDefinition>("myhttpclient", myExtendedMaskinportenSettings);
+```
 
 ## Using with Azure Keyvault as configuration provider i Azure App Services
 

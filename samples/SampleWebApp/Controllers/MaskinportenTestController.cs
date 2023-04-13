@@ -42,7 +42,7 @@ namespace SampleWebApp.Controllers
             var client0 = _clientFactory.CreateClient("myhttpclient");
             var result0 = await client0.GetAsync(url + "?myhttpclient");
 
-            var client1 = _clientFactory.CreateClient("myotherhttpclient");
+            /*var client1 = _clientFactory.CreateClient("myotherhttpclient");
             var result1 = await client1.GetAsync(url + "?myotherhttpclient");
 
             // Perform some requests with both the named client and the type client. This will both use the same token. 
@@ -50,7 +50,7 @@ namespace SampleWebApp.Controllers
             var result2 = await _myMaskinportenHttpClient.PerformStuff(url + "?_myMaskinportenHttpClient");
             var result3 = await _myOtherMaskinportenHttpClient.PerformStuff(url + "?_myOtherMaskinportenHttpClient");
             var result4 = await _myThirdMaskinportenHttpClient.PerformStuff(url + "?_myThirdMaskinportenHttpClient");
-            var result5 = await _myFourthMaskinportenHttpClient.PerformStuff(url + "?_myFourthMaskinportenHttpClient");
+            var result5 = await _myFourthMaskinportenHttpClient.PerformStuff(url + "?_myFourthMaskinportenHttpClient");*/
 
             return "Done!";
         }

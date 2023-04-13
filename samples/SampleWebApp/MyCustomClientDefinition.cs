@@ -14,9 +14,7 @@ namespace SampleWebApp
     public class MyCustomClientDefinition : IClientDefinition
     {
         private readonly ILogger<MyCustomClientDefinition> _logger;
-        public MaskinportenSettings ClientSettings { get; set; }
-        public MyCustomClientDefinitionSettings MyCustomClientDefinitionSettings { get; set; } = new();
-
+        public IMaskinportenSettings ClientSettings { get; set; }
         private ClientSecrets _clientSecrets;
 
         public MyCustomClientDefinition(ILogger<MyCustomClientDefinition> logger)
@@ -32,12 +30,14 @@ namespace SampleWebApp
             }
 
             _logger.LogInformation("Getting secrets from Azure");
+
+            var myCustomClientDefinitionSettings = (MyCustomClientDefinitionSettings)ClientSettings;
             
             var secretClient = new SecretClient(
-                new Uri($"https://{MyCustomClientDefinitionSettings.AzureKeyVaultName}.vault.azure.net/"),
+                new Uri($"https://{myCustomClientDefinitionSettings.AzureKeyVaultName}.vault.azure.net/"),
                 new DefaultAzureCredential());
 
-            var secret = await secretClient.GetSecretAsync(MyCustomClientDefinitionSettings.SecretName);
+            var secret = await secretClient.GetSecretAsync(myCustomClientDefinitionSettings.SecretName);
             var base64Str = secret.Value.ToString();
             if (base64Str == null)
             {
