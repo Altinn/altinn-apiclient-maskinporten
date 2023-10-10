@@ -10,6 +10,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    outputs:
+      version: ${{ steps.set_version.outputs.version }}
 
     steps:
     - name: Checkout
@@ -19,6 +21,7 @@ jobs:
       with:
         dotnet-version: '6.0.x'
     - name: Set VERSION variable from latest tag
+      id: set_version
       run: |
         LATEST_TAG=$(git fetch --tags && git for-each-ref --sort=creatordate --format '%(refname)' refs/tags | tail -n 1)
         if [[ "${LATEST_TAG}" == "" ]]; then echo "Unable to determine latest tag! Exiting"; exit 1; fi
@@ -26,6 +29,7 @@ jobs:
         VERSION=${LATEST_TAG/refs\/tags\/v/}
         echo "VERSION: ${VERSION}"
         echo "VERSION=${VERSION}" >> $GITHUB_ENV
+        echo "::set-output name=version::${VERSION}"
     - name: Set PROJECT variable to point to solution file
       run: |
         PROJECT=$(find . -name 'Altinn.ApiClients.Maskinporten.csproj' -printf "%p" -quit)
@@ -54,4 +58,4 @@ jobs:
     - name: Push to nuget.org
       env:
         NUGET_ORG_API_KEY: ${{secrets.NUGET_ORG_API_KEY}}
-      run: dotnet nuget push *.${VERSION}.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_ORG_API_KEY }}
+      run: dotnet nuget push *.${{ needs.build.outputs.version }}.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_ORG_API_KEY }}
