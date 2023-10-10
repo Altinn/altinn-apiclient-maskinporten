@@ -32,7 +32,7 @@ jobs:
       run: dotnet build --configuration Release /p:Version=${VERSION} ${SOLUTION}
       
     - name: Pack with debug symbols
-      run: dotnet pack --configuration Release /p:Version=${VERSION} -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg --output .
+      run: dotnet pack --configuration Release /p:Version=${VERSION} -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg --output . ${SOLUTION}
 
     - name: Upload artifact
       uses: actions/upload-artifact@v3
