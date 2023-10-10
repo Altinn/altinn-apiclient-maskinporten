@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
-using Altinn.ApiClients.Maskinporten.Config;
 using Altinn.ApiClients.Maskinporten.Interfaces;
 using Altinn.ApiClients.Maskinporten.Models;
 using Azure.Security.KeyVault.Secrets;
@@ -45,7 +44,7 @@ namespace SampleWebApp
             }
 
             var signingCertificate = new X509Certificate2(
-                Convert.FromBase64String(base64Str),
+                (ReadOnlySpan<byte>)Convert.FromBase64String(base64Str),
                 ClientSettings.CertificatePkcs12Password,
                 X509KeyStorageFlags.EphemeralKeySet);
 

@@ -29,5 +29,11 @@ namespace Altinn.ApiClients.Maskinporten.Helpers
         {
             return Settings.ElementAt(index);
         }
+
+        public static string GetClientDefinitionKey<TClient>()
+            where TClient : class
+        {
+            return typeof(TClient).FullName;
+        }
     }
 }

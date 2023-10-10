@@ -96,12 +96,52 @@ namespace Altinn.ApiClients.Maskinporten.Extensions
             where TClientDefinition : class, IClientDefinition
             where THttpClient : class
         {
-            services.RegisterMaskinportenClientDefinition<TClientDefinition>(typeof(THttpClient).FullName, settings);
+            services.RegisterMaskinportenClientDefinition<TClientDefinition>(
+                MaskinportenClientDefinitionHelper.GetClientDefinitionKey<THttpClient>(), settings);
 
             return services.AddHttpClient<THttpClient>()
                 .AddMaskinportenHttpMessageHandler<TClientDefinition, THttpClient>(configureClientDefinition);
         }
-        
+
+        /// <summary>
+        /// Adds a typed Maskinporten-enabled HTTP client with the given configuration to the dependency injection container
+        /// </summary>
+        /// <typeparam name="TClientDefinition">The client definition</typeparam>
+        /// <typeparam name="THttpClient">The HTTP client type</typeparam>
+        /// <typeparam name="THttpClientImplementation">The HTTP client implementation type</typeparam>
+        /// <param name="services">Service collection</param>
+        /// <param name="settings">Instance of IMaskinportenSettings to use</param>
+        /// <param name="configureClientDefinition">Delegate for configuring the client definition</param>
+        public static IHttpClientBuilder AddMaskinportenHttpClient<TClientDefinition, THttpClient, THttpClientImplementation>(this IServiceCollection services,
+            IMaskinportenSettings settings, Action<TClientDefinition> configureClientDefinition = null)
+            where TClientDefinition : class, IClientDefinition
+            where THttpClient : class
+            where THttpClientImplementation : class, THttpClient
+        {
+            services.RegisterMaskinportenClientDefinition<TClientDefinition>(
+                MaskinportenClientDefinitionHelper.GetClientDefinitionKey<THttpClient>(), settings);
+
+            return services.AddHttpClient<THttpClient, THttpClientImplementation>()
+                .AddMaskinportenHttpMessageHandler<TClientDefinition, THttpClient>(configureClientDefinition);
+        }
+
+        /// <summary>
+        /// Adds a typed Maskinporten-enabled HTTP client with the given configuration to the dependency injection container
+        /// </summary>
+        /// <typeparam name="TClientDefinition">The client definition</typeparam>
+        /// <typeparam name="THttpClient">The HTTP client type</typeparam>
+        /// <typeparam name="THttpClientImplementation">The HTTP client implementation type</typeparam>
+        /// <param name="services">Service collection</param>
+        /// <param name="config">IConfiguration instance containing fields that will be bound to MaskinportenSettings</param>
+        /// <param name="configureClientDefinition">Delegate for configuring the client definition</param>
+        public static IHttpClientBuilder AddMaskinportenHttpClient<TClientDefinition, THttpClient, THttpClientImplementation>(this IServiceCollection services,
+            IConfiguration config, Action<TClientDefinition> configureClientDefinition = null)
+            where TClientDefinition : class, IClientDefinition
+            where THttpClient : class
+            where THttpClientImplementation : class, THttpClient =>
+            AddMaskinportenHttpClient<TClientDefinition, THttpClient, THttpClientImplementation>(services,
+                BindConfigToInstanceOf<MaskinportenSettings>(config), configureClientDefinition);
+
         /// <summary>
         /// Adds a typed Maskinporten-enabled HTTP client with the given configuration to the dependency injection container
         /// </summary>
