@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
-using Altinn.ApiClients.Maskinporten.Config;
 using Altinn.ApiClients.Maskinporten.Interfaces;
 using Altinn.ApiClients.Maskinporten.Models;
 using Azure.Security.KeyVault.Secrets;
