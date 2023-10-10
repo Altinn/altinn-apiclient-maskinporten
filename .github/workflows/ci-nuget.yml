@@ -4,6 +4,7 @@ on:
   push:
     branches:
     - main
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -11,6 +12,7 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v3
+      
     - name: Set VERSION variable from latest tag (if existing) plus date and commit
       run: | 
         LATEST_TAG=$(git ls-remote --tags origin | tail -n 1 | awk '{ print $2; }' | sed 's/.*v//')
@@ -19,16 +21,39 @@ jobs:
         VERSION=${LATEST_TAG}-next.$(date +%Y%m%d).${GITHUB_RUN_NUMBER}
         echo "VERSION: ${VERSION}" 
         echo "VERSION=${VERSION}" >> $GITHUB_ENV
+        
     - name: Set SOLUTION variable to point to solution file
       run: |
         SOLUTION=$(find . -name '*.sln' -printf "%p" -quit)
         echo "SOLUTION: ${SOLUTION}"
         echo "SOLUTION=${SOLUTION}" >> $GITHUB_ENV
+        
     - name: Build
       run: dotnet build --configuration Release /p:Version=${VERSION} ${SOLUTION}
+      
     - name: Pack with debug symbols
-      run: dotnet pack --configuration Release /p:Version=${VERSION} -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg --output . ${SOLUTION}
-    - name: Push
-      run: dotnet nuget push *.${VERSION}.nupkg --source https://nuget.pkg.github.com/${GITHUB_REPOSITORY%/*}/index.json --api-key ${GITHUB_TOKEN}
+      run: dotnet pack --configuration Release /p:Version=${VERSION} -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg --output .
+      env:
+        SOLUTION: ${{ env.SOLUTION }}
+        VERSION: ${{ env.VERSION }}
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: package
+        path: '*.*nupkg'
+
+  push:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Download artifact
+      uses: actions/download-artifact@v2
+      with:
+        name: package
+      
+    - name: Push to NuGet
+      run: dotnet nuget push *.nupkg --source https://nuget.pkg.github.com/${GITHUB_REPOSITORY%/*}/index.json --api-key ${GITHUB_TOKEN}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
