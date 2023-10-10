@@ -3,7 +3,14 @@ using System.Threading.Tasks;
 
 namespace SampleWebApp
 {
-    public class MyMaskinportenHttpClient
+    public interface IMyMaskinportenHttpClient
+    {
+        Task<HttpResponseMessage> PerformStuff(string url);
+    }
+
+    public interface IMyOtherMaskinportenHttpClient {}
+
+    public class MyMaskinportenHttpClient : IMyMaskinportenHttpClient
     {
         private readonly HttpClient _httpClient;
 
@@ -19,7 +26,7 @@ namespace SampleWebApp
     }
 
 
-    public class MyOtherMaskinportenHttpClient : MyMaskinportenHttpClient
+    public class MyOtherMaskinportenHttpClient : MyMaskinportenHttpClient, IMyOtherMaskinportenHttpClient
     {
         public MyOtherMaskinportenHttpClient(HttpClient httpClient) : base(httpClient) { }
     }
