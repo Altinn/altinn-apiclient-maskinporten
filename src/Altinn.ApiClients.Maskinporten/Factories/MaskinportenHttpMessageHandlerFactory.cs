@@ -25,10 +25,19 @@ namespace Altinn.ApiClients.Maskinporten.Factories
             _maskinportenService = maskinportenService;
         }
 
+        public DelegatingHandler Get<TClientDefinition, THttpClient, THttpClientImplementation>(Action<TClientDefinition> configureClientDefinition = null)
+            where TClientDefinition : class, IClientDefinition
+            where THttpClient : class
+            where THttpClientImplementation : class, THttpClient
+        {
+            return GetByKey(MaskinportenClientDefinitionHelper.GetClientDefinitionKey<THttpClient>(), configureClientDefinition);
+        }
+
         public DelegatingHandler Get<TClientDefinition, THttpClient>(Action<TClientDefinition> configureClientDefinition = null)
             where TClientDefinition : class, IClientDefinition
+            where THttpClient : class
         {
-            return GetByKey(typeof(THttpClient).FullName, configureClientDefinition);
+            return GetByKey(MaskinportenClientDefinitionHelper.GetClientDefinitionKey<THttpClient>(), configureClientDefinition);
         }
 
         public DelegatingHandler Get<TClientDefinition>(string httpClientName, Action<TClientDefinition> configureClientDefinition = null)
