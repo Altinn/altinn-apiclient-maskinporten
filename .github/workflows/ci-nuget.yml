@@ -11,7 +11,7 @@ jobs:
     timeout-minutes: 15
     steps:
     - name: Checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       
     - name: Set VERSION variable from latest tag (if existing) plus date and commit
       run: | 
@@ -33,9 +33,6 @@ jobs:
       
     - name: Pack with debug symbols
       run: dotnet pack --configuration Release /p:Version=${VERSION} -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg --output .
-      env:
-        SOLUTION: ${{ env.SOLUTION }}
-        VERSION: ${{ env.VERSION }}
 
     - name: Upload artifact
       uses: actions/upload-artifact@v3
