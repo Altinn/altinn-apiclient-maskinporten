@@ -374,6 +374,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
                 "at22" => "https://platform.at22.altinn.cloud/authentication/api/v1/exchange/maskinporten",
                 "at23" => "https://platform.at23.altinn.cloud/authentication/api/v1/exchange/maskinporten",
                 "at24" => "https://platform.at24.altinn.cloud/authentication/api/v1/exchange/maskinporten",
+                "yt01" => "https://platform.yt01.altinn.cloud/authentication/api/v1/exchange/maskinporten",
                 // Supported for backward compatibility
                 "ver1" => "https://platform.tt02.altinn.no/authentication/api/v1/exchange/maskinporten",
                 "ver2" => "https://platform.tt02.altinn.no/authentication/api/v1/exchange/maskinporten",
