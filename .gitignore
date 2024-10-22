@@ -3,6 +3,12 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
+# JetBrains IDEs
+.idea/
+
+# macOS
+.DS_Store
+
 # Secrets
 Certs/
 
@@ -33,12 +39,6 @@ bld/
 [Oo]bj/
 [Ll]og/
 [Ll]ogs/
-
-# JetBrains IDEs
-.idea/
-
-#MacOS
-.DS_Store
 
 # Visual Studio 2015/2017 cache/options directory
 .vs/
