@@ -21,6 +21,10 @@ namespace Altinn.ApiClients.Maskinporten.Services
                 byte[] base64EncodedBytes = Convert.FromBase64String(ClientSettings.EncodedJwk);
                 string jwkjson = Encoding.UTF8.GetString(base64EncodedBytes);
                 clientSecrets.ClientKey = new JsonWebKey(jwkjson);
+                if (!string.IsNullOrWhiteSpace(ClientSettings.Kid))
+                {
+                    clientSecrets.ClientKey.KeyId = ClientSettings.Kid;
+                }
             }
 
             return await Task.FromResult(clientSecrets);

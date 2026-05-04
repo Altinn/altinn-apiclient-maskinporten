@@ -50,6 +50,12 @@ namespace Altinn.ApiClients.Maskinporten.Config
         public string EncodedX509 { get; set; }
 
         /// <summary>
+        /// Optional. Key identifier ("kid") to include in the JWT header for JWK-based signing.
+        /// When set, overrides any "kid" already embedded in the JWK.
+        /// </summary>
+        public string Kid { get; set; }
+
+        /// <summary>
         /// Optional. Consumer organization number for Maskinporten-based delegations
         /// </summary>
         public string ConsumerOrgNo { get; set; }

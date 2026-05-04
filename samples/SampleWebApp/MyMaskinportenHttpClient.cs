@@ -1,4 +1,6 @@
-﻿using System.Net.Http;
+﻿using Altinn.ApiClients.Maskinporten.Extensions;
+using Altinn.ApiClients.Maskinporten.Models;
+using System.Net.Http;
 using System.Threading.Tasks;
 
 namespace SampleWebApp
@@ -22,6 +24,31 @@ namespace SampleWebApp
         public async Task<HttpResponseMessage> PerformStuff(string url)
         {
             return await _httpClient.GetAsync(url);
+        }
+    }
+
+    public class MySystemUserMaskinportenHttpClient
+    {
+        private readonly HttpClient _httpClient;
+
+        public MySystemUserMaskinportenHttpClient(HttpClient httpClient)
+        {
+            _httpClient = httpClient;
+        }
+
+        public async Task<HttpResponseMessage> PerformStuff(string url, string customerOrgNo, string externalReference = null)
+        {
+            var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.SetMaskinportenTokenRequestContext(new MaskinportenTokenRequestContext
+            {
+                SystemUser = new SystemUserTokenRequest
+                {
+                    OrganizationNumber = customerOrgNo,
+                    ExternalReference = externalReference
+                }
+            });
+
+            return await _httpClient.SendAsync(request);
         }
     }
 
