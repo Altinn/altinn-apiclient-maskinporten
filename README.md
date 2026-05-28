@@ -8,13 +8,17 @@ Install the nuget with `dotnet add package Altinn.ApiClients.Maskinporten` or si
 
 Pre-release versions of this nuget are made available on Github.
 
+## Generate JWK
+There are many ways to generate a JWK. One way is to use https://mkjwk.org another is to use
+[Altinn.Cli Console App](https://github.com/Altinn/altinn-authorization-utils/tree/main/src/Altinn.Cli#example-maskinporten-key)
+
 ## Usage
 
 This library provides extensions methods providing means to configure one or more HttpClients that can be injected and used transparently as any other HttpClient instance.
 
 You will need to configure a client definition, which is a way of providing the necessary OAuth2-related settings (client-id, scopes etc), as well as a way of getting the secret (either a X.509 certificate with a private key or a JWK with a private key) used to sign the requests to Maskinporten. The client definition also contains other settings, such as whether Altinn token exchange should be used.
 
-> Note: There are several different client definition types built-in that can be used for aquiring secrets from various, or one can provide a custom one if required. It is also possible to create several named/typed clients using different combinations of settings and definition types. See below for a list of builtin client definitions, and the "SampleWebApp"-project (especially Startup.cs) for examples on how this can be done and extended with your own custom definitions if required.
+> Note: There are several different client definition types built-in that can be used for aquiring secrets from various, or one can provide a custom one if required. It is also possible to create several named/typed clients using different combinations of settings and definition types. See below for a list of builtin client definitions, and the "SampleWebApp"-project (especially Program.cs) for examples on how this can be done and extended with your own custom definitions if required.
 
 Here is an example with a both a [named](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/http-requests?view=aspnetcore-6.0#named-clients) and [typed](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/http-requests?view=aspnetcore-6.0#typed-clients) client using a client definition where the secret is a private RSA key in a JWK supplied in the injected settings.
 
@@ -211,7 +215,7 @@ public class MyCustomClientDefinition : IClientDefinition
     }
 }
 
-// ---- Program.cs / Startup.cs ---- 
+// ---- Program.cs ---- 
 var myExtendedMaskinportenSettings = new MyExtendedMaskinportenSettings();
 // We assume `Configuration` is a IConfiguration instance containing the settings from eg. appsettings.json
 // and that `services` is a IServiceCollection
@@ -289,6 +293,27 @@ This library also supports enriching Maskinporten tokens with enterprise user cr
 "EnterpriseUserPassword": "mysecret",
 ````
 
+## Request-scoped system user token requests
+
+For customer-specific system user requests, attach request-scoped context to the outgoing `HttpRequestMessage`. This adds `authorization_details` to the JWT assertion without putting customer-specific values in shared client settings.
+
+```c#
+using Altinn.ApiClients.Maskinporten.Extensions;
+using Altinn.ApiClients.Maskinporten.Models;
+
+var request = new HttpRequestMessage(HttpMethod.Get, "/resource");
+request.SetMaskinportenTokenRequestContext(new MaskinportenTokenRequestContext
+{
+    SystemUser = new SystemUserTokenRequest
+    {
+        OrganizationNumber = "999888777",
+        ExternalReference = "customer-123"
+    }
+});
+```
+
+The organization number can be supplied either as a plain org number or as a full ISO6523 identifier like `0192:999888777`.
+
 ## Custom cache provider (2.x and later)
 
 By default, this library will cache tokens using MemoryCache via `MemoryCacheTokenProvider`, allowing tokens to be reused  as long as they are valid (based on `exp`-claim). If your application has other caching needs, you can provide your own implementation of `ITokenCacheProvider` by registering your implementation as a service before calling `AddMaskinportenHttpClient`.
@@ -299,7 +324,7 @@ services.AddSingleton<ITokenCacheProvider, FileTokenCacheProvider>();
 
 `FileTokenCacheProvider` is included in the library, which uses a file based cache. 
 
-**See the "SampleWebApp"-project (especially Startup.cs) for more examples on various client defintions, cache providers, custom definitions and several clients with different configurations**
+**See the "SampleWebApp"-project (especially Program.cs) for more examples on various client defintions, cache providers, custom definitions and several clients with different configurations**
 
 
 ## Manual use of TokenService

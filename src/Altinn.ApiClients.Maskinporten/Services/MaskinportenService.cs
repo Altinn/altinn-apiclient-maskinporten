@@ -40,12 +40,12 @@ namespace Altinn.ApiClients.Maskinporten.Services
 
         public async Task<TokenResponse> GetToken(X509Certificate2 cert, string environment, string clientId, string scope, string resource, string consumerOrgNo = null, bool disableCaching = false)
         {
-            return await GetToken(cert, null, environment, clientId, scope, resource, consumerOrgNo, disableCaching);
+            return await GetToken(cert, null, environment, clientId, scope, resource, consumerOrgNo, null, disableCaching);
         }
 
         public async Task<TokenResponse> GetToken(JsonWebKey jwk, string environment, string clientId, string scope, string resource, string consumerOrgNo = null, bool disableCaching = false)
         {
-            return await GetToken(null, jwk, environment, clientId, scope, resource, consumerOrgNo, disableCaching);
+            return await GetToken(null, jwk, environment, clientId, scope, resource, consumerOrgNo, null, disableCaching);
         }
 
         public async Task<TokenResponse> GetToken(string base64EncodedJwk, string environment, string clientId, string scope, string resource, string consumerOrgNo = null, bool disableCaching = false)
@@ -53,10 +53,15 @@ namespace Altinn.ApiClients.Maskinporten.Services
             byte[] base64EncodedBytes = Convert.FromBase64String(base64EncodedJwk);
             string jwkjson = Encoding.UTF8.GetString(base64EncodedBytes);
             JsonWebKey jwk = new JsonWebKey(jwkjson);
-            return await GetToken(null, jwk, environment, clientId, scope, resource, consumerOrgNo, disableCaching);
+            return await GetToken(null, jwk, environment, clientId, scope, resource, consumerOrgNo, null, disableCaching);
         }
 
         public async Task<TokenResponse> GetToken(IClientDefinition clientDefinition, bool disableCaching = false)
+        {
+            return await GetToken(clientDefinition, null, disableCaching);
+        }
+
+        public async Task<TokenResponse> GetToken(IClientDefinition clientDefinition, MaskinportenTokenRequestContext requestContext, bool disableCaching = false)
         {
             if (clientDefinition.ClientSettings.EnableDebugLogging.HasValue &&
                 clientDefinition.ClientSettings.EnableDebugLogging.Value)
@@ -71,11 +76,10 @@ namespace Altinn.ApiClients.Maskinporten.Services
             TokenResponse tokenResponse;
             if (clientSecrets.ClientKey != null)
             {
-                DebugLog($"GetToken: Using JWK, N={clientSecrets.ClientKey.N}");
                 tokenResponse = await GetToken(null, clientSecrets.ClientKey,
                     clientDefinition.ClientSettings.Environment, clientDefinition.ClientSettings.ClientId,
                     clientDefinition.ClientSettings.Scope, clientDefinition.ClientSettings.Resource,
-                    clientDefinition.ClientSettings.ConsumerOrgNo, disableCaching);
+                    clientDefinition.ClientSettings.ConsumerOrgNo, requestContext, disableCaching);
             }
             else if (clientSecrets.ClientCertificate != null)
             {
@@ -83,7 +87,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
                 tokenResponse = await GetToken(clientSecrets.ClientCertificate, null,
                     clientDefinition.ClientSettings.Environment, clientDefinition.ClientSettings.ClientId,
                     clientDefinition.ClientSettings.Scope, clientDefinition.ClientSettings.Resource,
-                    clientDefinition.ClientSettings.ConsumerOrgNo, disableCaching);
+                    clientDefinition.ClientSettings.ConsumerOrgNo, requestContext, disableCaching);
             }
             else
             {
@@ -199,10 +203,10 @@ namespace Altinn.ApiClients.Maskinporten.Services
             return BitConverter.ToString(md5.ComputeHash(Encoding.UTF8.GetBytes(tokenResponse.AccessToken + userName)));
         }
 
-        private string GetJwtAssertion(X509Certificate2 cert, JsonWebKey jwk, string environment, string clientId, string scope, string resource, string consumerOrg)
+        private string GetJwtAssertion(X509Certificate2 cert, SecurityKey signingKey, string environment, string clientId, string scope, string resource, string consumerOrg, MaskinportenTokenRequestContext requestContext)
         {
             DateTimeOffset dateTimeOffset = new DateTimeOffset(DateTime.UtcNow);
-            JwtHeader header = cert != null ? GetHeader(cert) : GetHeader(jwk);
+            JwtHeader header = cert != null ? GetHeader(cert) : GetHeader(signingKey);
 
             JwtPayload payload = new JwtPayload
             {
@@ -224,6 +228,11 @@ namespace Altinn.ApiClients.Maskinporten.Services
                 payload.Add("consumer_org", consumerOrg);
             }
 
+            if (requestContext?.SystemUser != null)
+            {
+                payload.Add("authorization_details", GetSystemUserAuthorizationDetails(requestContext.SystemUser));
+            }
+
             JwtSecurityToken securityToken = new JwtSecurityToken(header, payload);
             JwtSecurityTokenHandler handler = new JwtSecurityTokenHandler();
 
@@ -232,9 +241,9 @@ namespace Altinn.ApiClients.Maskinporten.Services
             return assertion;
         }
 
-        private async Task<TokenResponse> GetToken(X509Certificate2 cert, JsonWebKey jwk, string environment, string clientId, string scope, string resource, string consumerOrg, bool disableCaching)
+        private async Task<TokenResponse> GetToken(X509Certificate2 cert, SecurityKey signingKey, string environment, string clientId, string scope, string resource, string consumerOrg, MaskinportenTokenRequestContext requestContext, bool disableCaching)
         {
-            string cacheKey = $"{clientId}-{scope}-{resource}-{consumerOrg}";
+            string cacheKey = GetTokenCacheKey(clientId, scope, resource, consumerOrg, requestContext);
 
             await SemaphoreSlim.WaitAsync();
             try
@@ -251,7 +260,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
 
                 DebugLog("GetToken: cache miss or cache disabled");
 
-                string jwtAssertion = GetJwtAssertion(cert, jwk, environment, clientId, scope, resource, consumerOrg);
+                string jwtAssertion = GetJwtAssertion(cert, signingKey, environment, clientId, scope, resource, consumerOrg, requestContext);
                 HttpRequestMessage requestMessage = new HttpRequestMessage()
                 {
                     Method = HttpMethod.Post,
@@ -275,9 +284,61 @@ namespace Altinn.ApiClients.Maskinporten.Services
             }
         }
 
-        private JwtHeader GetHeader(JsonWebKey jwk)
+        private string GetTokenCacheKey(string clientId, string scope, string resource, string consumerOrg, MaskinportenTokenRequestContext requestContext)
         {
-            return new JwtHeader(new SigningCredentials(jwk, SecurityAlgorithms.RsaSha256));
+            return JsonSerializer.Serialize(new
+            {
+                clientId,
+                scope,
+                resource,
+                consumerOrg,
+                systemUserOrg = requestContext?.SystemUser?.OrganizationNumber,
+                systemUserExternalReference = requestContext?.SystemUser?.ExternalReference
+            });
+        }
+
+        private List<Dictionary<string, object>> GetSystemUserAuthorizationDetails(SystemUserTokenRequest systemUserRequest)
+        {
+            if (string.IsNullOrWhiteSpace(systemUserRequest.OrganizationNumber))
+            {
+                throw new ArgumentException("System user token requests require an organization number.");
+            }
+
+            var systemUserOrganization = new Dictionary<string, string>
+            {
+                { "authority", "iso6523-actorid-upis" },
+                { "ID", GetSystemUserOrganizationIdentifier(systemUserRequest.OrganizationNumber) }
+            };
+
+            var authorizationDetailsEntry = new Dictionary<string, object>
+            {
+                { "type", "urn:altinn:systemuser" },
+                { "systemuser_org", systemUserOrganization }
+            };
+
+            if (!string.IsNullOrWhiteSpace(systemUserRequest.ExternalReference))
+            {
+                authorizationDetailsEntry.Add("externalRef", systemUserRequest.ExternalReference);
+            }
+
+            return new List<Dictionary<string, object>> { authorizationDetailsEntry };
+        }
+
+        private string GetSystemUserOrganizationIdentifier(string organizationNumber)
+        {
+            return organizationNumber.StartsWith("0192:") ? organizationNumber : $"0192:{organizationNumber}";
+        }
+
+        private JwtHeader GetHeader(SecurityKey signingKey)
+        {
+            JwtHeader header = new JwtHeader(new SigningCredentials(signingKey, SecurityAlgorithms.RsaSha256));
+
+            if (!string.IsNullOrWhiteSpace(signingKey.KeyId) && !header.ContainsKey("kid"))
+            {
+                header.Add("kid", signingKey.KeyId);
+            }
+
+            return header;
         }
 
         private JwtHeader GetHeader(X509Certificate2 cert)
