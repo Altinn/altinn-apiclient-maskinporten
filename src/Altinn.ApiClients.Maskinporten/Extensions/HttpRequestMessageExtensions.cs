@@ -5,19 +5,19 @@ namespace Altinn.ApiClients.Maskinporten.Extensions
 {
     public static class HttpRequestMessageExtensions
     {
-        private static readonly HttpRequestOptionsKey<MaskinportenRequestContext> MaskinportenTokenRequestContextKey =
-            new("Altinn.ApiClients.Maskinporten.TokenRequestContext");
+        private static readonly HttpRequestOptionsKey<MaskinportenRequestContext> MaskinportenRequestContextKey =
+            new("Altinn.ApiClients.Maskinporten.RequestContext");
 
-        public static HttpRequestMessage SetMaskinportenTokenRequestContext(this HttpRequestMessage request,
+        public static HttpRequestMessage SetMaskinportenRequestContext(this HttpRequestMessage request,
             MaskinportenRequestContext requestContext)
         {
-            request.Options.Set(MaskinportenTokenRequestContextKey, requestContext);
+            request.Options.Set(MaskinportenRequestContextKey, requestContext);
             return request;
         }
 
-        public static MaskinportenRequestContext GetMaskinportenTokenRequestContext(this HttpRequestMessage request)
+        public static MaskinportenRequestContext GetMaskinportenRequestContext(this HttpRequestMessage request)
         {
-            request.Options.TryGetValue(MaskinportenTokenRequestContextKey, out MaskinportenRequestContext requestContext);
+            request.Options.TryGetValue(MaskinportenRequestContextKey, out var requestContext);
             return requestContext;
         }
     }

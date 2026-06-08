@@ -39,7 +39,7 @@ namespace SampleWebApp
         public async Task<HttpResponseMessage> PerformStuff(string url, string customerOrgNo, string externalReference = null)
         {
             var request = new HttpRequestMessage(HttpMethod.Get, url);
-            request.SetMaskinportenTokenRequestContext(new MaskinportenRequestContext
+            request.SetMaskinportenRequestContext(new MaskinportenRequestContext
             {
                 SystemUser = new SystemUser
                 {

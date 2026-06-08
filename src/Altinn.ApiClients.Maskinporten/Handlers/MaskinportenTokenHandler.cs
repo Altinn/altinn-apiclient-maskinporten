@@ -27,7 +27,7 @@ namespace Altinn.ApiClients.Maskinporten.Handlers
                 (_clientDefinition.ClientSettings.OverwriteAuthorizationHeader.HasValue &&
                 _clientDefinition.ClientSettings.OverwriteAuthorizationHeader.Value))
             {
-                var requestContext = request.GetMaskinportenTokenRequestContext();
+                var requestContext = request.GetMaskinportenRequestContext();
                 tokenResponse = await GetTokenResponse(requestContext, cancellationToken);
                 if (tokenResponse != null) 
                 {
@@ -42,7 +42,7 @@ namespace Altinn.ApiClients.Maskinporten.Handlers
                 return response;
             }
 
-            tokenResponse = await RefreshTokenResponse(request.GetMaskinportenTokenRequestContext(), cancellationToken);
+            tokenResponse = await RefreshTokenResponse(request.GetMaskinportenRequestContext(), cancellationToken);
             if (tokenResponse != null)
             {
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenResponse.AccessToken);
