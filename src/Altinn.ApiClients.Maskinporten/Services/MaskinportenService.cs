@@ -61,7 +61,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
             return await GetToken(clientDefinition, null, disableCaching);
         }
 
-        public async Task<TokenResponse> GetToken(IClientDefinition clientDefinition, MaskinportenTokenRequestContext requestContext, bool disableCaching = false)
+        public async Task<TokenResponse> GetToken(IClientDefinition clientDefinition, MaskinportenRequestContext requestContext, bool disableCaching = false)
         {
             if (clientDefinition.ClientSettings.EnableDebugLogging.HasValue &&
                 clientDefinition.ClientSettings.EnableDebugLogging.Value)
@@ -203,7 +203,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
             return BitConverter.ToString(md5.ComputeHash(Encoding.UTF8.GetBytes(tokenResponse.AccessToken + userName)));
         }
 
-        private string GetJwtAssertion(X509Certificate2 cert, SecurityKey signingKey, string environment, string clientId, string scope, string resource, string consumerOrg, MaskinportenTokenRequestContext requestContext)
+        private string GetJwtAssertion(X509Certificate2 cert, SecurityKey signingKey, string environment, string clientId, string scope, string resource, string consumerOrg, MaskinportenRequestContext requestContext)
         {
             DateTimeOffset dateTimeOffset = new DateTimeOffset(DateTime.UtcNow);
             JwtHeader header = cert != null ? GetHeader(cert) : GetHeader(signingKey);
@@ -241,7 +241,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
             return assertion;
         }
 
-        private async Task<TokenResponse> GetToken(X509Certificate2 cert, SecurityKey signingKey, string environment, string clientId, string scope, string resource, string consumerOrg, MaskinportenTokenRequestContext requestContext, bool disableCaching)
+        private async Task<TokenResponse> GetToken(X509Certificate2 cert, SecurityKey signingKey, string environment, string clientId, string scope, string resource, string consumerOrg, MaskinportenRequestContext requestContext, bool disableCaching)
         {
             string cacheKey = GetTokenCacheKey(clientId, scope, resource, consumerOrg, requestContext);
 
@@ -284,7 +284,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
             }
         }
 
-        private string GetTokenCacheKey(string clientId, string scope, string resource, string consumerOrg, MaskinportenTokenRequestContext requestContext)
+        private string GetTokenCacheKey(string clientId, string scope, string resource, string consumerOrg, MaskinportenRequestContext requestContext)
         {
             return JsonSerializer.Serialize(new
             {
@@ -297,7 +297,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
             });
         }
 
-        private List<Dictionary<string, object>> GetSystemUserAuthorizationDetails(SystemUserTokenRequest systemUserRequest)
+        private List<Dictionary<string, object>> GetSystemUserAuthorizationDetails(SystemUser systemUserRequest)
         {
             if (string.IsNullOrWhiteSpace(systemUserRequest.OrganizationNumber))
             {

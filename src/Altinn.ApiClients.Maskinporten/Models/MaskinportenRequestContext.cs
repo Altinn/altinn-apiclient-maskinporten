@@ -1,14 +1,14 @@
 namespace Altinn.ApiClients.Maskinporten.Models
 {
-    public class MaskinportenTokenRequestContext
+    public class MaskinportenRequestContext
     {
         /// <summary>
         /// Optional. System user authorization details to include in the token request.
         /// </summary>
-        public SystemUserTokenRequest SystemUser { get; set; }
+        public SystemUser SystemUser { get; set; }
     }
 
-    public class SystemUserTokenRequest
+    public class SystemUser
     {
         /// <summary>
         /// Organization number of the customer the system user token is requested for.

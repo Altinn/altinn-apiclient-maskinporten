@@ -31,7 +31,7 @@ namespace Altinn.ApiClients.Maskinporten.Interfaces
         /// Generates an access token based on supplied definition containing settings and secrets,
         /// augmented with request-scoped system user authorization details.
         /// </summary>
-        Task<TokenResponse> GetToken(IClientDefinition clientDefinition, MaskinportenTokenRequestContext requestContext, bool disableCaching = false);
+        Task<TokenResponse> GetToken(IClientDefinition clientDefinition, MaskinportenRequestContext requestContext, bool disableCaching = false);
 
         /// <summary>
         /// Exchanges a Maskinporten access token to a Altinn token.

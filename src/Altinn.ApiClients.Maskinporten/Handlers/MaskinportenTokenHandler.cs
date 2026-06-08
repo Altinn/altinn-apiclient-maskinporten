@@ -27,7 +27,7 @@ namespace Altinn.ApiClients.Maskinporten.Handlers
                 (_clientDefinition.ClientSettings.OverwriteAuthorizationHeader.HasValue &&
                 _clientDefinition.ClientSettings.OverwriteAuthorizationHeader.Value))
             {
-                var requestContext = request.GetMaskinportenTokenRequestContext();
+                var requestContext = request.GetMaskinportenRequestContext();
                 tokenResponse = await GetTokenResponse(requestContext, cancellationToken);
                 if (tokenResponse != null) 
                 {
@@ -42,7 +42,7 @@ namespace Altinn.ApiClients.Maskinporten.Handlers
                 return response;
             }
 
-            tokenResponse = await RefreshTokenResponse(request.GetMaskinportenTokenRequestContext(), cancellationToken);
+            tokenResponse = await RefreshTokenResponse(request.GetMaskinportenRequestContext(), cancellationToken);
             if (tokenResponse != null)
             {
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenResponse.AccessToken);
@@ -52,14 +52,14 @@ namespace Altinn.ApiClients.Maskinporten.Handlers
             return response;
         }
 
-        private async Task<TokenResponse> GetTokenResponse(MaskinportenTokenRequestContext requestContext, CancellationToken cancellationToken)
+        private async Task<TokenResponse> GetTokenResponse(MaskinportenRequestContext requestContext, CancellationToken cancellationToken)
         {
             if (cancellationToken.IsCancellationRequested) return null;
             TokenResponse tokenResponse =  await _maskinporten.GetToken(_clientDefinition, requestContext);
             return tokenResponse;
         }
 
-        private async Task<TokenResponse> RefreshTokenResponse(MaskinportenTokenRequestContext requestContext, CancellationToken cancellationToken)
+        private async Task<TokenResponse> RefreshTokenResponse(MaskinportenRequestContext requestContext, CancellationToken cancellationToken)
         {
             if (cancellationToken.IsCancellationRequested) return null;
             TokenResponse tokenResponse = await _maskinporten.GetToken(_clientDefinition, requestContext, true);
