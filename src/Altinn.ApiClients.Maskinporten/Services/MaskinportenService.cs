@@ -79,7 +79,8 @@ namespace Altinn.ApiClients.Maskinporten.Services
                 tokenResponse = await GetToken(null, clientSecrets.ClientKey,
                     clientDefinition.ClientSettings.Environment, clientDefinition.ClientSettings.ClientId,
                     clientDefinition.ClientSettings.Scope, clientDefinition.ClientSettings.Resource,
-                    clientDefinition.ClientSettings.ConsumerOrgNo, requestContext, disableCaching);
+                    clientDefinition.ClientSettings.ConsumerOrgNo, requestContext, disableCaching,
+                    clientDefinition.ClientSettings.TokenEndpoint, clientDefinition.ClientSettings.AssertionAudience);
             }
             else if (clientSecrets.ClientCertificate != null)
             {
@@ -87,7 +88,8 @@ namespace Altinn.ApiClients.Maskinporten.Services
                 tokenResponse = await GetToken(clientSecrets.ClientCertificate, null,
                     clientDefinition.ClientSettings.Environment, clientDefinition.ClientSettings.ClientId,
                     clientDefinition.ClientSettings.Scope, clientDefinition.ClientSettings.Resource,
-                    clientDefinition.ClientSettings.ConsumerOrgNo, requestContext, disableCaching);
+                    clientDefinition.ClientSettings.ConsumerOrgNo, requestContext, disableCaching,
+                    clientDefinition.ClientSettings.TokenEndpoint, clientDefinition.ClientSettings.AssertionAudience);
             }
             else
             {
@@ -97,13 +99,14 @@ namespace Altinn.ApiClients.Maskinporten.Services
             // Check if we have an explicitly set environment for token exchange, else derive it from Maskinporten environment
             string tokenExchangeEnvironment =
                 clientDefinition.ClientSettings.TokenExchangeEnvironment ?? clientDefinition.ClientSettings.Environment;
+            string tokenExchangeEndpoint = clientDefinition.ClientSettings.TokenExchangeEndpoint;
 
             if (!string.IsNullOrEmpty(clientDefinition.ClientSettings.EnterpriseUserName) &&
                 !string.IsNullOrEmpty(clientDefinition.ClientSettings.EnterpriseUserPassword))
             {
                 DebugLog($"GetToken: Using enterprise username and password");
-                return await ExchangeToAltinnToken(tokenResponse, tokenExchangeEnvironment, clientDefinition.ClientSettings.EnterpriseUserName,
-                    clientDefinition.ClientSettings.EnterpriseUserPassword, disableCaching);
+                return await PerformTokenExchange(tokenResponse, tokenExchangeEnvironment, tokenExchangeEndpoint,
+                    clientDefinition.ClientSettings.EnterpriseUserName, clientDefinition.ClientSettings.EnterpriseUserPassword, disableCaching);
             }
 
             if (clientDefinition.ClientSettings.ExhangeToAltinnToken.HasValue &&
@@ -111,14 +114,15 @@ namespace Altinn.ApiClients.Maskinporten.Services
             {
                 if (clientDefinition.ClientSettings.UseAltinnTestOrg.HasValue)
                 {
-                    return await ExchangeToAltinnToken(
+                    return await PerformTokenExchange(
                         tokenResponse,
                         tokenExchangeEnvironment,
+                        tokenExchangeEndpoint,
                         disableCaching: disableCaching,
                         isTestOrg: clientDefinition.ClientSettings.UseAltinnTestOrg.Value);
                 }
 
-                return await ExchangeToAltinnToken(tokenResponse, tokenExchangeEnvironment, disableCaching: disableCaching);
+                return await PerformTokenExchange(tokenResponse, tokenExchangeEnvironment, tokenExchangeEndpoint, disableCaching: disableCaching);
             }
 
             return tokenResponse;
@@ -127,6 +131,18 @@ namespace Altinn.ApiClients.Maskinporten.Services
         public async Task<TokenResponse> ExchangeToAltinnToken(
                 TokenResponse tokenResponse,
                 string environment,
+                string userName = null,
+                string password = null,
+                bool disableCaching = false,
+                bool isTestOrg = false)
+        {
+            return await PerformTokenExchange(tokenResponse, environment, null, userName, password, disableCaching, isTestOrg);
+        }
+
+        private async Task<TokenResponse> PerformTokenExchange(
+                TokenResponse tokenResponse,
+                string environment,
+                string tokenExchangeEndpoint,
                 string userName = null,
                 string password = null,
                 bool disableCaching = false,
@@ -151,7 +167,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
                 HttpRequestMessage requestMessage = new HttpRequestMessage()
                 {
                     Method = HttpMethod.Get,
-                    RequestUri = new Uri(GetTokenExchangeEndpoint(environment)),
+                    RequestUri = new Uri(tokenExchangeEndpoint ?? GetTokenExchangeEndpoint(environment)),
                     Headers = { Authorization = new AuthenticationHeaderValue("Bearer", tokenResponse.AccessToken) }
                 };
 
@@ -203,14 +219,14 @@ namespace Altinn.ApiClients.Maskinporten.Services
             return BitConverter.ToString(md5.ComputeHash(Encoding.UTF8.GetBytes(tokenResponse.AccessToken + userName)));
         }
 
-        private string GetJwtAssertion(X509Certificate2 cert, SecurityKey signingKey, string environment, string clientId, string scope, string resource, string consumerOrg, MaskinportenRequestContext requestContext)
+        private string GetJwtAssertion(X509Certificate2 cert, SecurityKey signingKey, string environment, string clientId, string scope, string resource, string consumerOrg, MaskinportenRequestContext requestContext, string assertionAudience)
         {
             DateTimeOffset dateTimeOffset = new DateTimeOffset(DateTime.UtcNow);
             JwtHeader header = cert != null ? GetHeader(cert) : GetHeader(signingKey);
 
             JwtPayload payload = new JwtPayload
             {
-                { "aud", GetAssertionAud(environment) },
+                { "aud", assertionAudience ?? GetAssertionAud(environment) },
                 { "scope", scope },
                 { "iss", clientId },
                 { "exp", dateTimeOffset.ToUnixTimeSeconds() + 10 },
@@ -241,7 +257,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
             return assertion;
         }
 
-        private async Task<TokenResponse> GetToken(X509Certificate2 cert, SecurityKey signingKey, string environment, string clientId, string scope, string resource, string consumerOrg, MaskinportenRequestContext requestContext, bool disableCaching)
+        private async Task<TokenResponse> GetToken(X509Certificate2 cert, SecurityKey signingKey, string environment, string clientId, string scope, string resource, string consumerOrg, MaskinportenRequestContext requestContext, bool disableCaching, string tokenEndpoint = null, string assertionAudience = null)
         {
             string cacheKey = GetTokenCacheKey(clientId, scope, resource, consumerOrg, requestContext);
 
@@ -260,15 +276,16 @@ namespace Altinn.ApiClients.Maskinporten.Services
 
                 DebugLog("GetToken: cache miss or cache disabled");
 
-                string jwtAssertion = GetJwtAssertion(cert, signingKey, environment, clientId, scope, resource, consumerOrg, requestContext);
+                string jwtAssertion = GetJwtAssertion(cert, signingKey, environment, clientId, scope, resource, consumerOrg, requestContext, assertionAudience);
+                tokenEndpoint ??= GetTokenEndpoint(environment);
                 HttpRequestMessage requestMessage = new HttpRequestMessage()
                 {
                     Method = HttpMethod.Post,
-                    RequestUri = new Uri(GetTokenEndpoint(environment)),
+                    RequestUri = new Uri(tokenEndpoint),
                     Content = GetUrlEncodedContent(jwtAssertion)
                 };
 
-                DebugLog($"GetToken: Requesting token from {GetTokenEndpoint(environment)}");
+                DebugLog($"GetToken: Requesting token from {tokenEndpoint}");
 
                 TokenResponse accesstokenResponse = await PerformRequest<TokenResponse>(requestMessage);
 

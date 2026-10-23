@@ -284,6 +284,36 @@ services.AddMaskinportenHttpClient<SettingsJwkClientDefinition, MyMaskinportenHt
 ```
 
 
+## Overriding the Maskinporten and token exchange endpoints
+
+By default, the token endpoint and the `aud`-claim of the JWT grant are derived from `Environment`, and the token exchange endpoint from `TokenExchangeEnvironment`. 
+These can be overridden with absolute URLs, e.g. to point the client at a local mock or a test stack. When an override is not set, the value is derived from the environment as before.
+
+```jsonc
+"MaskinportenSettings": {
+    // ...
+    // Optional. Maskinporten token endpoint. Default: derived from 'Environment'
+    "TokenEndpoint": "http://localhost:5097/token",
+
+    // Optional. The 'aud'-claim of the JWT grant, ie. the issuer identifier of the Maskinporten instance. Default: derived from 'Environment'
+    "AssertionAudience": "http://localhost:5097/",
+
+    // Optional. Altinn token exchange endpoint. Default: derived from 'TokenExchangeEnvironment'
+    "TokenExchangeEndpoint": "http://localhost:5098/authentication/api/v1/exchange/maskinporten"
+  }
+```
+
+When both `TokenEndpoint` and `AssertionAudience` are set, `Environment` is not used for Maskinporten and can be omitted (it is still used to derive the token exchange endpoint if `TokenExchangeEndpoint` is not set). 
+As with any other setting, these can also be supplied as environment variables, e.g. `MaskinportenSettings__TokenEndpoint`.
+
+A client definition with a private key is still required, as the JWT grant is always signed. For a mock, any throwaway RSA key will do.
+The endpoint receiving the request must:
+
+* accept a `POST` with a `application/x-www-form-urlencoded` body containing `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer` and `assertion=<signed JWT>`. The JWT is signed with RS256 and is only valid for 10 seconds.
+* respond with a JSON object like `{"access_token": "...", "token_type": "Bearer", "expires_in": 120, "scope": "..."}`. `expires_in` must be a number, and tokens are cached until 5 seconds before they expire.
+
+The token exchange endpoint receives a `GET` with the Maskinporten token as a bearer token (and `?test=true` if `UseAltinnTestOrg` is set), and must respond with the exchanged token as a JSON string, ie. in quotes.
+
 ## Authenticating with a enterprise user
 
 This library also supports enriching Maskinporten tokens with enterprise user credentials for APIs requiring user roles/rights. In order to do this, you will need to add the following fields to the configuration, containing the enterpriseuser's username and password.
