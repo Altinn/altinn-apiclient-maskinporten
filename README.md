@@ -287,7 +287,7 @@ services.AddMaskinportenHttpClient<SettingsJwkClientDefinition, MyMaskinportenHt
 ## Overriding the Maskinporten and token exchange endpoints
 
 By default, the token endpoint and the `aud`-claim of the JWT grant are derived from `Environment`, and the token exchange endpoint from `TokenExchangeEnvironment`. 
-These can be overridden with absolute URLs, e.g. to point the client at a local mock or a test stack. When an override is not set, the value is derived from the environment as before.
+These can be overridden with absolute URLs, e.g. to point the client at a local mock or a test stack. When an override is not set, the value is derived from the environment as before. An empty value (e.g. an empty environment variable) is treated as unset, and a warning is logged.
 
 ```jsonc
 "MaskinportenSettings": {

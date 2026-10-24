@@ -15,6 +15,7 @@ using Altinn.ApiClients.Maskinporten.Models;
 using Altinn.ApiClients.Maskinporten.Services;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.IdentityModel.Tokens;
 using Xunit;
@@ -145,6 +146,72 @@ namespace Altinn.ApiClients.Maskinporten.Tests
             Assert.Equal("maskinporten-token", exchangeRequest.Headers.Authorization.Parameter);
         }
 
+        [Theory]
+        [InlineData("")]
+        [InlineData("  ")]
+        public async Task GetToken_BlankOverrides_FallBackToEnvironmentAndLogWarnings(string blank)
+        {
+            var handler = new RecordingHandler(MaskinportenTokenJson, "\"altinn-token\"");
+            var logger = new ListLogger();
+            var settings = CreateSettings("test");
+            settings.TokenEndpoint = blank;
+            settings.AssertionAudience = blank;
+            settings.ExhangeToAltinnToken = true;
+            settings.TokenExchangeEndpoint = blank;
+
+            await CreateService(handler, logger).GetToken(CreateClientDefinition(settings));
+
+            Assert.Equal(new Uri("https://test.maskinporten.no/token"), handler.Requests[0].RequestUri);
+            Assert.Equal("https://test.maskinporten.no/", GetAssertionAudience(handler.RequestBodies[0]));
+            Assert.Equal(
+                new Uri("https://platform.tt02.altinn.no/authentication/api/v1/exchange/maskinporten"),
+                handler.Requests[1].RequestUri);
+            Assert.Equal(3, logger.Warnings.Count);
+            Assert.Contains(logger.Warnings, w => w.Contains("TokenEndpoint is set to an empty value"));
+            Assert.Contains(logger.Warnings, w => w.Contains("AssertionAudience is set to an empty value"));
+            Assert.Contains(logger.Warnings, w => w.Contains("TokenExchangeEndpoint is set to an empty value"));
+        }
+
+        [Fact]
+        public async Task GetToken_UnsetOverrides_DoNotLogWarnings()
+        {
+            var handler = new RecordingHandler(MaskinportenTokenJson);
+            var logger = new ListLogger();
+
+            await CreateService(handler, logger).GetToken(CreateClientDefinition(CreateSettings("test")));
+
+            Assert.Empty(logger.Warnings);
+        }
+
+        [Fact]
+        public async Task GetToken_TestOrgWithTokenExchangeEndpointContainingQuery_AppendsTestFlagToQuery()
+        {
+            var handler = new RecordingHandler(MaskinportenTokenJson, "\"altinn-token\"");
+            var settings = CreateSettings("test");
+            settings.ExhangeToAltinnToken = true;
+            settings.UseAltinnTestOrg = true;
+            settings.TokenExchangeEndpoint = "http://localhost:5098/exchange?tenant=local";
+
+            await CreateService(handler).GetToken(CreateClientDefinition(settings));
+
+            Assert.Equal(new Uri("http://localhost:5098/exchange?tenant=local&test=true"), handler.Requests[1].RequestUri);
+        }
+
+        [Fact]
+        public async Task GetToken_TestOrgWithoutOverride_AppendsTestFlag()
+        {
+            var handler = new RecordingHandler(MaskinportenTokenJson, "\"altinn-token\"");
+            var settings = CreateSettings("test");
+            settings.ExhangeToAltinnToken = true;
+            settings.UseAltinnTestOrg = true;
+
+            await CreateService(handler).GetToken(CreateClientDefinition(settings));
+
+            Assert.Equal(
+                new Uri("https://platform.tt02.altinn.no/authentication/api/v1/exchange/maskinporten?test=true"),
+                handler.Requests[1].RequestUri);
+        }
+
         [Fact]
         public void MaskinportenSettings_EndpointOverrides_CanBeBoundFromConfiguration()
         {
@@ -183,11 +250,11 @@ namespace Altinn.ApiClients.Maskinporten.Tests
             Assert.Equal(new Uri("https://test.maskinporten.no/token"), Assert.Single(handler.Requests).RequestUri);
         }
 
-        private static MaskinportenService CreateService(RecordingHandler handler)
+        private static MaskinportenService CreateService(RecordingHandler handler, ILogger<MaskinportenService> logger = null)
         {
             return new MaskinportenService(
                 new HttpClient(handler),
-                NullLogger<MaskinportenService>.Instance,
+                logger ?? NullLogger<MaskinportenService>.Instance,
                 new MemoryTokenCacheProvider(new MemoryCache(new MemoryCacheOptions())));
         }
 
@@ -263,6 +330,26 @@ namespace Altinn.ApiClients.Maskinporten.Tests
                 {
                     Content = new StringContent(_responses.Dequeue(), Encoding.UTF8, "application/json")
                 };
+            }
+        }
+
+        /// <summary>
+        /// Collects the messages of warnings logged by the service.
+        /// </summary>
+        private class ListLogger : ILogger<MaskinportenService>
+        {
+            public List<string> Warnings { get; } = new();
+
+            public IDisposable BeginScope<TState>(TState state) => null;
+
+            public bool IsEnabled(LogLevel logLevel) => true;
+
+            public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
+            {
+                if (logLevel == LogLevel.Warning)
+                {
+                    Warnings.Add(formatter(state, exception));
+                }
             }
         }
 

@@ -167,14 +167,19 @@ namespace Altinn.ApiClients.Maskinporten.Services
                 HttpRequestMessage requestMessage = new HttpRequestMessage()
                 {
                     Method = HttpMethod.Get,
-                    RequestUri = new Uri(tokenExchangeEndpoint ?? GetTokenExchangeEndpoint(environment)),
+                    RequestUri = new Uri(GetOverrideOrDefault(tokenExchangeEndpoint, nameof(IMaskinportenSettings.TokenExchangeEndpoint),
+                        () => GetTokenExchangeEndpoint(environment))),
                     Headers = { Authorization = new AuthenticationHeaderValue("Bearer", tokenResponse.AccessToken) }
                 };
 
                 if (isTestOrg)
                 {
                     DebugLog("ExchangeToAltinnToken: isTestOrg is true");
-                    requestMessage.RequestUri = new Uri(requestMessage.RequestUri + "?test=true");
+                    UriBuilder uriBuilder = new UriBuilder(requestMessage.RequestUri);
+                    uriBuilder.Query = string.IsNullOrEmpty(uriBuilder.Query)
+                        ? "test=true"
+                        : uriBuilder.Query.TrimStart('?') + "&test=true";
+                    requestMessage.RequestUri = uriBuilder.Uri;
                 }
 
                 TokenResponse exchangedTokenResponse = new TokenResponse
@@ -226,7 +231,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
 
             JwtPayload payload = new JwtPayload
             {
-                { "aud", assertionAudience ?? GetAssertionAud(environment) },
+                { "aud", GetOverrideOrDefault(assertionAudience, nameof(IMaskinportenSettings.AssertionAudience), () => GetAssertionAud(environment)) },
                 { "scope", scope },
                 { "iss", clientId },
                 { "exp", dateTimeOffset.ToUnixTimeSeconds() + 10 },
@@ -277,7 +282,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
                 DebugLog("GetToken: cache miss or cache disabled");
 
                 string jwtAssertion = GetJwtAssertion(cert, signingKey, environment, clientId, scope, resource, consumerOrg, requestContext, assertionAudience);
-                tokenEndpoint ??= GetTokenEndpoint(environment);
+                tokenEndpoint = GetOverrideOrDefault(tokenEndpoint, nameof(IMaskinportenSettings.TokenEndpoint), () => GetTokenEndpoint(environment));
                 HttpRequestMessage requestMessage = new HttpRequestMessage()
                 {
                     Method = HttpMethod.Post,
@@ -416,6 +421,22 @@ namespace Altinn.ApiClients.Maskinporten.Services
         {
             if (!_enableDebugLogging) return;
             _logger.LogInformation("[Altinn.ApiClients.Maskinporten DEBUG]: " + message, args);
+        }
+
+        private string GetOverrideOrDefault(string overrideValue, string settingName, Func<string> getDefault)
+        {
+            if (overrideValue == null)
+            {
+                return getDefault();
+            }
+
+            if (string.IsNullOrWhiteSpace(overrideValue))
+            {
+                _logger.LogWarning("{settingName} is set to an empty value and is ignored. Using the value derived from the environment instead.", settingName);
+                return getDefault();
+            }
+
+            return overrideValue;
         }
 
         private string GetAssertionAud(string environment)

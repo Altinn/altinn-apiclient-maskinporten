@@ -97,18 +97,18 @@ namespace Altinn.ApiClients.Maskinporten.Config
 
         /// <summary>
         /// Optional. Absolute URL of the Maskinporten token endpoint, e.g. a local mock like http://localhost:5097/token.
-        /// Default: derive from 'Environment'
+        /// Default: derive from 'Environment'. Empty values are treated as unset
         /// </summary>
         public string TokenEndpoint { get; set; }
 
         /// <summary>
         /// Optional. The 'aud'-claim of the JWT grant sent to the token endpoint, ie. the issuer identifier of the
-        /// Maskinporten instance (e.g. https://test.maskinporten.no/). Default: derive from 'Environment'
+        /// Maskinporten instance (e.g. https://test.maskinporten.no/). Default: derive from 'Environment'. Empty values are treated as unset
         /// </summary>
         public string AssertionAudience { get; set; }
 
         /// <summary>
-        /// Optional. Absolute URL of the Altinn token exchange endpoint. Default: derive from 'TokenExchangeEnvironment'
+        /// Optional. Absolute URL of the Altinn token exchange endpoint. Default: derive from 'TokenExchangeEnvironment'. Empty values are treated as unset
         /// </summary>
         public string TokenExchangeEndpoint { get; set; }
     }
