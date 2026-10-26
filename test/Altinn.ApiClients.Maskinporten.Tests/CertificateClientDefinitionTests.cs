@@ -12,7 +12,12 @@ namespace Altinn.ApiClients.Maskinporten.Tests
 {
     public class CertificateClientDefinitionTests
     {
-        [NotOnMacOSTheory]
+        // The client definitions load certificates with X509KeyStorageFlags.EphemeralKeySet, which is not supported on macOS
+        private const string EphemeralKeySetNotSupported = "X509KeyStorageFlags.EphemeralKeySet is not supported on macOS";
+
+        public static bool IsMacOS => OperatingSystem.IsMacOS();
+
+        [Theory(Skip = EphemeralKeySetNotSupported, SkipWhen = nameof(IsMacOS))]
         [InlineData("secret")]
         [InlineData("")]
         [InlineData(null)]
@@ -20,7 +25,7 @@ namespace Altinn.ApiClients.Maskinporten.Tests
         {
             using X509Certificate2 certificate = CreateCertificate();
             string file = Path.Combine(Path.GetTempPath(), "altinn-apiclient-maskinporten-test-" + Guid.NewGuid());
-            await File.WriteAllBytesAsync(file, certificate.Export(X509ContentType.Pkcs12, password));
+            await File.WriteAllBytesAsync(file, certificate.Export(X509ContentType.Pkcs12, password), TestContext.Current.CancellationToken);
             try
             {
                 var clientDefinition = new Pkcs12ClientDefinition
@@ -43,7 +48,7 @@ namespace Altinn.ApiClients.Maskinporten.Tests
             }
         }
 
-        [NotOnMacOSTheory]
+        [Theory(Skip = EphemeralKeySetNotSupported, SkipWhen = nameof(IsMacOS))]
         [InlineData("")]
         [InlineData(null)]
         public async Task SettingsX509ClientDefinition_LoadsCertificateWithPrivateKey(string password)
@@ -68,20 +73,6 @@ namespace Altinn.ApiClients.Maskinporten.Tests
             using RSA rsa = RSA.Create(2048);
             var request = new CertificateRequest("CN=altinn-apiclient-maskinporten-test", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
             return request.CreateSelfSigned(DateTimeOffset.UtcNow.AddMinutes(-5), DateTimeOffset.UtcNow.AddHours(1));
-        }
-
-        /// <summary>
-        /// The client definitions load certificates with X509KeyStorageFlags.EphemeralKeySet, which is not supported on macOS.
-        /// </summary>
-        private sealed class NotOnMacOSTheoryAttribute : TheoryAttribute
-        {
-            public NotOnMacOSTheoryAttribute()
-            {
-                if (OperatingSystem.IsMacOS())
-                {
-                    Skip = "X509KeyStorageFlags.EphemeralKeySet is not supported on macOS";
-                }
-            }
         }
     }
 }
