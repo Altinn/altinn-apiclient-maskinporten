@@ -7,6 +7,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Altinn.ApiClients.Maskinpor
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SampleWebApp", "..\..\samples\SampleWebApp\SampleWebApp.csproj", "{DF814DED-CEE7-4F26-9ABB-EF26AD84E400}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Altinn.ApiClients.Maskinporten.Tests", "..\..\test\Altinn.ApiClients.Maskinporten.Tests\Altinn.ApiClients.Maskinporten.Tests.csproj", "{FD21CC56-EC7D-4EF5-8491-2F21FFC9145F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{DF814DED-CEE7-4F26-9ABB-EF26AD84E400}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DF814DED-CEE7-4F26-9ABB-EF26AD84E400}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DF814DED-CEE7-4F26-9ABB-EF26AD84E400}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FD21CC56-EC7D-4EF5-8491-2F21FFC9145F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FD21CC56-EC7D-4EF5-8491-2F21FFC9145F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FD21CC56-EC7D-4EF5-8491-2F21FFC9145F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FD21CC56-EC7D-4EF5-8491-2F21FFC9145F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
