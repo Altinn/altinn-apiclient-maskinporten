@@ -16,10 +16,17 @@ namespace Altinn.ApiClients.Maskinporten.Services
         {
             string p12KeyStoreFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ClientSettings.CertificatePkcs12Path);
 
-            X509Certificate2 signingCertificate = new X509Certificate2(
-                p12KeyStoreFile, 
+#if NET9_0_OR_GREATER
+            X509Certificate2 signingCertificate = X509CertificateLoader.LoadPkcs12FromFile(
+                p12KeyStoreFile,
                 ClientSettings.CertificatePkcs12Password,
                 X509KeyStorageFlags.EphemeralKeySet);
+#else
+            X509Certificate2 signingCertificate = new X509Certificate2(
+                p12KeyStoreFile,
+                ClientSettings.CertificatePkcs12Password,
+                X509KeyStorageFlags.EphemeralKeySet);
+#endif
 
             return Task.FromResult(new ClientSecrets()
             {

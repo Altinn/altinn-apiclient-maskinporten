@@ -62,8 +62,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
                 }
 
                 fileContents = new byte[fs.Length];
-                // ReSharper disable once MustUseReturnValue
-                await fs.ReadAsync(fileContents.AsMemory(0, (int)fs.Length));
+                await fs.ReadExactlyAsync(fileContents);
             }
 
             _tokenCacheStoreEntries = JsonSerializer.Deserialize<Dictionary<string, TokenCacheStoreEntry>>(fileContents);
