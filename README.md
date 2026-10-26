@@ -287,7 +287,7 @@ services.AddMaskinportenHttpClient<SettingsJwkClientDefinition, MyMaskinportenHt
 ## Overriding the Maskinporten and token exchange endpoints
 
 By default, the token endpoint and the `aud`-claim of the JWT grant are derived from `Environment`, and the token exchange endpoint from `TokenExchangeEnvironment`. 
-These can be overridden with absolute URLs, e.g. to point the client at a local mock or a test stack. When an override is not set, the value is derived from the environment as before. An empty value (e.g. an empty environment variable) is treated as unset, and a warning is logged.
+These can be overridden with absolute URLs, e.g. to point the client at a local mock or a test stack. When an override is not set, the value is derived from the environment as before. An empty value (e.g. an empty environment variable) is treated as unset. `TokenEndpoint` and `TokenExchangeEndpoint` must be absolute `http` or `https` URLs.
 
 ```jsonc
 "MaskinportenSettings": {
@@ -305,6 +305,11 @@ These can be overridden with absolute URLs, e.g. to point the client at a local 
 
 When both `TokenEndpoint` and `AssertionAudience` are set, `Environment` is not used for Maskinporten and can be omitted (it is still used to derive the token exchange endpoint if `TokenExchangeEndpoint` is not set). 
 As with any other setting, these can also be supplied as environment variables, e.g. `MaskinportenSettings__TokenEndpoint`.
+
+The overrides apply when tokens are requested through a client definition, ie. when using the HTTP client extensions or
+`IMaskinportenService.GetToken(IClientDefinition, ...)`. The lower-level `IMaskinportenService` methods that take an `environment`
+parameter (`GetToken(jwk, environment, ...)`, `GetToken(cert, environment, ...)` and `ExchangeToAltinnToken(...)`) always derive
+the URLs from that environment.
 
 A client definition with a private key is still required, as the JWT grant is always signed. For a mock, any throwaway RSA key will do.
 The endpoint receiving the request must:

@@ -148,7 +148,20 @@ namespace Altinn.ApiClients.Maskinporten.Services
                 bool disableCaching = false,
                 bool isTestOrg = false)
         {
-            string cacheKey = GetCacheKeyForTokenAndUsername(tokenResponse, userName ?? string.Empty);
+            Uri requestUri = GetEndpointOverrideOrDefault(tokenExchangeEndpoint, nameof(IMaskinportenSettings.TokenExchangeEndpoint),
+                () => GetTokenExchangeEndpoint(environment));
+
+            if (isTestOrg)
+            {
+                DebugLog("ExchangeToAltinnToken: isTestOrg is true");
+                UriBuilder uriBuilder = new UriBuilder(requestUri);
+                uriBuilder.Query = string.IsNullOrEmpty(uriBuilder.Query)
+                    ? "test=true"
+                    : uriBuilder.Query.TrimStart('?') + "&test=true";
+                requestUri = uriBuilder.Uri;
+            }
+
+            string cacheKey = GetCacheKeyForTokenAndUsername(tokenResponse, userName ?? string.Empty, requestUri);
             await SemaphoreSlim.WaitAsync();
             try
             {
@@ -167,20 +180,9 @@ namespace Altinn.ApiClients.Maskinporten.Services
                 HttpRequestMessage requestMessage = new HttpRequestMessage()
                 {
                     Method = HttpMethod.Get,
-                    RequestUri = new Uri(GetOverrideOrDefault(tokenExchangeEndpoint, nameof(IMaskinportenSettings.TokenExchangeEndpoint),
-                        () => GetTokenExchangeEndpoint(environment))),
+                    RequestUri = requestUri,
                     Headers = { Authorization = new AuthenticationHeaderValue("Bearer", tokenResponse.AccessToken) }
                 };
-
-                if (isTestOrg)
-                {
-                    DebugLog("ExchangeToAltinnToken: isTestOrg is true");
-                    UriBuilder uriBuilder = new UriBuilder(requestMessage.RequestUri);
-                    uriBuilder.Query = string.IsNullOrEmpty(uriBuilder.Query)
-                        ? "test=true"
-                        : uriBuilder.Query.TrimStart('?') + "&test=true";
-                    requestMessage.RequestUri = uriBuilder.Uri;
-                }
 
                 TokenResponse exchangedTokenResponse = new TokenResponse
                 {
@@ -218,20 +220,20 @@ namespace Altinn.ApiClients.Maskinporten.Services
             }
         }
 
-        private string GetCacheKeyForTokenAndUsername(TokenResponse tokenResponse, string userName)
+        private string GetCacheKeyForTokenAndUsername(TokenResponse tokenResponse, string userName, Uri requestUri)
         {
             MD5 md5 = MD5.Create();
-            return BitConverter.ToString(md5.ComputeHash(Encoding.UTF8.GetBytes(tokenResponse.AccessToken + userName)));
+            return BitConverter.ToString(md5.ComputeHash(Encoding.UTF8.GetBytes($"{tokenResponse.AccessToken}|{userName}|{requestUri.AbsoluteUri}")));
         }
 
-        private string GetJwtAssertion(X509Certificate2 cert, SecurityKey signingKey, string environment, string clientId, string scope, string resource, string consumerOrg, MaskinportenRequestContext requestContext, string assertionAudience)
+        private string GetJwtAssertion(X509Certificate2 cert, SecurityKey signingKey, string audience, string clientId, string scope, string resource, string consumerOrg, MaskinportenRequestContext requestContext)
         {
             DateTimeOffset dateTimeOffset = new DateTimeOffset(DateTime.UtcNow);
             JwtHeader header = cert != null ? GetHeader(cert) : GetHeader(signingKey);
 
             JwtPayload payload = new JwtPayload
             {
-                { "aud", GetOverrideOrDefault(assertionAudience, nameof(IMaskinportenSettings.AssertionAudience), () => GetAssertionAud(environment)) },
+                { "aud", audience },
                 { "scope", scope },
                 { "iss", clientId },
                 { "exp", dateTimeOffset.ToUnixTimeSeconds() + 10 },
@@ -264,7 +266,9 @@ namespace Altinn.ApiClients.Maskinporten.Services
 
         private async Task<TokenResponse> GetToken(X509Certificate2 cert, SecurityKey signingKey, string environment, string clientId, string scope, string resource, string consumerOrg, MaskinportenRequestContext requestContext, bool disableCaching, string tokenEndpoint = null, string assertionAudience = null)
         {
-            string cacheKey = GetTokenCacheKey(clientId, scope, resource, consumerOrg, requestContext);
+            Uri tokenEndpointUri = GetEndpointOverrideOrDefault(tokenEndpoint, nameof(IMaskinportenSettings.TokenEndpoint), () => GetTokenEndpoint(environment));
+            string audience = GetOverrideOrDefault(assertionAudience, () => GetAssertionAud(environment));
+            string cacheKey = GetTokenCacheKey(clientId, scope, resource, consumerOrg, requestContext, tokenEndpointUri, audience);
 
             await SemaphoreSlim.WaitAsync();
             try
@@ -281,16 +285,15 @@ namespace Altinn.ApiClients.Maskinporten.Services
 
                 DebugLog("GetToken: cache miss or cache disabled");
 
-                string jwtAssertion = GetJwtAssertion(cert, signingKey, environment, clientId, scope, resource, consumerOrg, requestContext, assertionAudience);
-                tokenEndpoint = GetOverrideOrDefault(tokenEndpoint, nameof(IMaskinportenSettings.TokenEndpoint), () => GetTokenEndpoint(environment));
+                string jwtAssertion = GetJwtAssertion(cert, signingKey, audience, clientId, scope, resource, consumerOrg, requestContext);
                 HttpRequestMessage requestMessage = new HttpRequestMessage()
                 {
                     Method = HttpMethod.Post,
-                    RequestUri = new Uri(tokenEndpoint),
+                    RequestUri = tokenEndpointUri,
                     Content = GetUrlEncodedContent(jwtAssertion)
                 };
 
-                DebugLog($"GetToken: Requesting token from {tokenEndpoint}");
+                DebugLog($"GetToken: Requesting token from {tokenEndpointUri}");
 
                 TokenResponse accesstokenResponse = await PerformRequest<TokenResponse>(requestMessage);
 
@@ -306,7 +309,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
             }
         }
 
-        private string GetTokenCacheKey(string clientId, string scope, string resource, string consumerOrg, MaskinportenRequestContext requestContext)
+        private string GetTokenCacheKey(string clientId, string scope, string resource, string consumerOrg, MaskinportenRequestContext requestContext, Uri tokenEndpoint, string audience)
         {
             return JsonSerializer.Serialize(new
             {
@@ -315,7 +318,9 @@ namespace Altinn.ApiClients.Maskinporten.Services
                 resource,
                 consumerOrg,
                 systemUserOrg = requestContext?.SystemUser?.OrganizationNumber,
-                systemUserExternalReference = requestContext?.SystemUser?.ExternalReference
+                systemUserExternalReference = requestContext?.SystemUser?.ExternalReference,
+                tokenEndpoint = tokenEndpoint.AbsoluteUri,
+                audience
             });
         }
 
@@ -423,20 +428,23 @@ namespace Altinn.ApiClients.Maskinporten.Services
             _logger.LogInformation("[Altinn.ApiClients.Maskinporten DEBUG]: " + message, args);
         }
 
-        private string GetOverrideOrDefault(string overrideValue, string settingName, Func<string> getDefault)
+        private static string GetOverrideOrDefault(string overrideValue, Func<string> getDefault)
         {
-            if (overrideValue == null)
+            return string.IsNullOrWhiteSpace(overrideValue) ? getDefault() : overrideValue;
+        }
+
+        private static Uri GetEndpointOverrideOrDefault(string overrideValue, string settingName, Func<string> getDefault)
+        {
+            string endpoint = GetOverrideOrDefault(overrideValue, getDefault);
+
+            // On Unix, a path like "/token" is parsed as an absolute file URI, so the scheme must be checked as well
+            if (!Uri.TryCreate(endpoint, UriKind.Absolute, out Uri uri) ||
+                (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
             {
-                return getDefault();
+                throw new ArgumentException($"Invalid {settingName} setting '{endpoint}'. Must be an absolute http or https URL.");
             }
 
-            if (string.IsNullOrWhiteSpace(overrideValue))
-            {
-                _logger.LogWarning("{settingName} is set to an empty value and is ignored. Using the value derived from the environment instead.", settingName);
-                return getDefault();
-            }
-
-            return overrideValue;
+            return uri;
         }
 
         private string GetAssertionAud(string environment)
@@ -447,7 +455,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
                 "ver1" => "https://ver1.maskinporten.no/",
                 "ver2" => "https://ver2.maskinporten.no/",
                 "test" => "https://test.maskinporten.no/",
-                _ => throw new ArgumentException("Invalid environment setting. Valid values: prod, ver1, ver2, test")
+                _ => throw new ArgumentException($"Invalid environment setting '{environment}'. Valid values: prod, ver1, ver2, test. Alternatively, set AssertionAudience.")
             };
         }
 
@@ -459,7 +467,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
                 "ver1" => "https://ver1.maskinporten.no/token",
                 "ver2" => "https://ver2.maskinporten.no/token",
                 "test" => "https://test.maskinporten.no/token",
-                _ => throw new ArgumentException("Invalid environment setting. Valid values: prod, ver1, ver2, test")
+                _ => throw new ArgumentException($"Invalid environment setting '{environment}'. Valid values: prod, ver1, ver2, test. Alternatively, set TokenEndpoint and AssertionAudience.")
             };
         }
 
@@ -478,7 +486,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
                 "ver1" => "https://platform.tt02.altinn.no/authentication/api/v1/exchange/maskinporten",
                 "ver2" => "https://platform.tt02.altinn.no/authentication/api/v1/exchange/maskinporten",
                 "test" => "https://platform.tt02.altinn.no/authentication/api/v1/exchange/maskinporten",
-                _ => throw new ArgumentException("Invalid environment setting. Valid values: prod, tt02, at21, at22, at23, at24")
+                _ => throw new ArgumentException($"Invalid token exchange environment setting '{environment}'. Valid values: prod, tt02, at21, at22, at23, at24, yt01. Alternatively, set TokenExchangeEndpoint.")
             };
         }
     }

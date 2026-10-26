@@ -15,7 +15,6 @@ using Altinn.ApiClients.Maskinporten.Models;
 using Altinn.ApiClients.Maskinporten.Services;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.IdentityModel.Tokens;
 using Xunit;
@@ -149,38 +148,105 @@ namespace Altinn.ApiClients.Maskinporten.Tests
         [Theory]
         [InlineData("")]
         [InlineData("  ")]
-        public async Task GetToken_BlankOverrides_FallBackToEnvironmentAndLogWarnings(string blank)
+        public async Task GetToken_BlankOverrides_FallBackToEnvironment(string blank)
         {
             var handler = new RecordingHandler(MaskinportenTokenJson, "\"altinn-token\"");
-            var logger = new ListLogger();
             var settings = CreateSettings("test");
             settings.TokenEndpoint = blank;
             settings.AssertionAudience = blank;
             settings.ExhangeToAltinnToken = true;
             settings.TokenExchangeEndpoint = blank;
 
-            await CreateService(handler, logger).GetToken(CreateClientDefinition(settings));
+            await CreateService(handler).GetToken(CreateClientDefinition(settings));
 
             Assert.Equal(new Uri("https://test.maskinporten.no/token"), handler.Requests[0].RequestUri);
             Assert.Equal("https://test.maskinporten.no/", GetAssertionAudience(handler.RequestBodies[0]));
             Assert.Equal(
                 new Uri("https://platform.tt02.altinn.no/authentication/api/v1/exchange/maskinporten"),
                 handler.Requests[1].RequestUri);
-            Assert.Equal(3, logger.Warnings.Count);
-            Assert.Contains(logger.Warnings, w => w.Contains("TokenEndpoint is set to an empty value"));
-            Assert.Contains(logger.Warnings, w => w.Contains("AssertionAudience is set to an empty value"));
-            Assert.Contains(logger.Warnings, w => w.Contains("TokenExchangeEndpoint is set to an empty value"));
+        }
+
+        [Theory]
+        [InlineData("/token")]
+        [InlineData("localhost:5097/token")]
+        [InlineData("ftp://localhost:5097/token")]
+        [InlineData("not a url")]
+        public async Task GetToken_InvalidTokenEndpoint_ThrowsArgumentExceptionNamingTheSetting(string tokenEndpoint)
+        {
+            var handler = new RecordingHandler(MaskinportenTokenJson);
+            var settings = CreateSettings("test");
+            settings.TokenEndpoint = tokenEndpoint;
+
+            var exception = await Assert.ThrowsAsync<ArgumentException>(() => CreateService(handler).GetToken(CreateClientDefinition(settings)));
+
+            Assert.Contains("TokenEndpoint", exception.Message);
+            Assert.Empty(handler.Requests);
         }
 
         [Fact]
-        public async Task GetToken_UnsetOverrides_DoNotLogWarnings()
+        public async Task GetToken_InvalidTokenExchangeEndpoint_ThrowsArgumentExceptionNamingTheSetting()
         {
             var handler = new RecordingHandler(MaskinportenTokenJson);
-            var logger = new ListLogger();
+            var settings = CreateSettings("test");
+            settings.ExhangeToAltinnToken = true;
+            settings.TokenExchangeEndpoint = "/authentication/api/v1/exchange/maskinporten";
 
-            await CreateService(handler, logger).GetToken(CreateClientDefinition(CreateSettings("test")));
+            var exception = await Assert.ThrowsAsync<ArgumentException>(() => CreateService(handler).GetToken(CreateClientDefinition(settings)));
 
-            Assert.Empty(logger.Warnings);
+            Assert.Contains("TokenExchangeEndpoint", exception.Message);
+            Assert.Single(handler.Requests);
+        }
+
+        [Fact]
+        public async Task GetToken_OnlyTokenEndpointOverriddenWithoutEnvironment_ErrorMentionsAssertionAudience()
+        {
+            var handler = new RecordingHandler(MaskinportenTokenJson);
+            var settings = CreateSettings(null);
+            settings.TokenEndpoint = "http://localhost:5097/token";
+
+            var exception = await Assert.ThrowsAsync<ArgumentException>(() => CreateService(handler).GetToken(CreateClientDefinition(settings)));
+
+            Assert.Contains("AssertionAudience", exception.Message);
+        }
+
+        [Fact]
+        public async Task GetToken_SameClientWithDifferentTokenEndpoints_DoesNotShareCachedToken()
+        {
+            var handler = new RecordingHandler(MaskinportenTokenJson, MaskinportenTokenJson);
+            MaskinportenService service = CreateService(handler);
+            var realSettings = CreateSettings("test");
+            var mockSettings = CreateSettings("test");
+            mockSettings.TokenEndpoint = "http://localhost:5097/token";
+
+            await service.GetToken(CreateClientDefinition(realSettings));
+            await service.GetToken(CreateClientDefinition(mockSettings));
+            await service.GetToken(CreateClientDefinition(realSettings));
+            await service.GetToken(CreateClientDefinition(mockSettings));
+
+            Assert.Equal(2, handler.Requests.Count);
+            Assert.Equal(new Uri("https://test.maskinporten.no/token"), handler.Requests[0].RequestUri);
+            Assert.Equal(new Uri("http://localhost:5097/token"), handler.Requests[1].RequestUri);
+        }
+
+        [Fact]
+        public async Task GetToken_SameTokenWithDifferentTokenExchangeEndpoints_DoesNotShareCachedExchange()
+        {
+            var handler = new RecordingHandler(MaskinportenTokenJson, "\"altinn-token-1\"", "\"altinn-token-2\"");
+            MaskinportenService service = CreateService(handler);
+            var firstSettings = CreateSettings("test");
+            firstSettings.ExhangeToAltinnToken = true;
+            firstSettings.TokenExchangeEndpoint = "http://localhost:5098/exchange";
+            var secondSettings = CreateSettings("test");
+            secondSettings.ExhangeToAltinnToken = true;
+            secondSettings.TokenExchangeEndpoint = "http://localhost:5099/exchange";
+
+            TokenResponse first = await service.GetToken(CreateClientDefinition(firstSettings));
+            TokenResponse second = await service.GetToken(CreateClientDefinition(secondSettings));
+
+            Assert.Equal("altinn-token-1", first.AccessToken);
+            Assert.Equal("altinn-token-2", second.AccessToken);
+            Assert.Equal(3, handler.Requests.Count);
+            Assert.Equal(new Uri("http://localhost:5099/exchange"), handler.Requests[2].RequestUri);
         }
 
         [Fact]
@@ -250,11 +316,11 @@ namespace Altinn.ApiClients.Maskinporten.Tests
             Assert.Equal(new Uri("https://test.maskinporten.no/token"), Assert.Single(handler.Requests).RequestUri);
         }
 
-        private static MaskinportenService CreateService(RecordingHandler handler, ILogger<MaskinportenService> logger = null)
+        private static MaskinportenService CreateService(RecordingHandler handler)
         {
             return new MaskinportenService(
                 new HttpClient(handler),
-                logger ?? NullLogger<MaskinportenService>.Instance,
+                NullLogger<MaskinportenService>.Instance,
                 new MemoryTokenCacheProvider(new MemoryCache(new MemoryCacheOptions())));
         }
 
@@ -330,26 +396,6 @@ namespace Altinn.ApiClients.Maskinporten.Tests
                 {
                     Content = new StringContent(_responses.Dequeue(), Encoding.UTF8, "application/json")
                 };
-            }
-        }
-
-        /// <summary>
-        /// Collects the messages of warnings logged by the service.
-        /// </summary>
-        private class ListLogger : ILogger<MaskinportenService>
-        {
-            public List<string> Warnings { get; } = new();
-
-            public IDisposable BeginScope<TState>(TState state) => null;
-
-            public bool IsEnabled(LogLevel logLevel) => true;
-
-            public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
-            {
-                if (logLevel == LogLevel.Warning)
-                {
-                    Warnings.Add(formatter(state, exception));
-                }
             }
         }
 
