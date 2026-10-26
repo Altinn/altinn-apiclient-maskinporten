@@ -28,6 +28,8 @@ namespace Altinn.ApiClients.Maskinporten.Services
 
         private bool _enableDebugLogging;
 
+        private bool _enterpriseUserIgnoredWarningLogged;
+
         public MaskinportenService(HttpClient httpClient,
             ILogger<MaskinportenService> logger,
             ITokenCacheProvider tokenCacheProvider)
@@ -101,12 +103,12 @@ namespace Altinn.ApiClients.Maskinporten.Services
                 clientDefinition.ClientSettings.TokenExchangeEnvironment ?? clientDefinition.ClientSettings.Environment;
             string tokenExchangeEndpoint = clientDefinition.ClientSettings.TokenExchangeEndpoint;
 
-            if (!string.IsNullOrEmpty(clientDefinition.ClientSettings.EnterpriseUserName) &&
+#pragma warning disable CS0618 // Only read to warn that the obsolete enterprise user settings are ignored
+            if (!string.IsNullOrEmpty(clientDefinition.ClientSettings.EnterpriseUserName) ||
                 !string.IsNullOrEmpty(clientDefinition.ClientSettings.EnterpriseUserPassword))
+#pragma warning restore CS0618
             {
-                DebugLog($"GetToken: Using enterprise username and password");
-                return await PerformTokenExchange(tokenResponse, tokenExchangeEnvironment, tokenExchangeEndpoint,
-                    clientDefinition.ClientSettings.EnterpriseUserName, clientDefinition.ClientSettings.EnterpriseUserPassword, disableCaching);
+                LogEnterpriseUserIgnoredWarning();
             }
 
             if (clientDefinition.ClientSettings.ExhangeToAltinnToken.HasValue &&
@@ -136,15 +138,18 @@ namespace Altinn.ApiClients.Maskinporten.Services
                 bool disableCaching = false,
                 bool isTestOrg = false)
         {
-            return await PerformTokenExchange(tokenResponse, environment, null, userName, password, disableCaching, isTestOrg);
+            if (userName != null || password != null)
+            {
+                LogEnterpriseUserIgnoredWarning();
+            }
+
+            return await PerformTokenExchange(tokenResponse, environment, null, disableCaching, isTestOrg);
         }
 
         private async Task<TokenResponse> PerformTokenExchange(
                 TokenResponse tokenResponse,
                 string environment,
                 string tokenExchangeEndpoint,
-                string userName = null,
-                string password = null,
                 bool disableCaching = false,
                 bool isTestOrg = false)
         {
@@ -161,7 +166,7 @@ namespace Altinn.ApiClients.Maskinporten.Services
                 requestUri = uriBuilder.Uri;
             }
 
-            string cacheKey = GetCacheKeyForTokenAndUsername(tokenResponse, userName ?? string.Empty, requestUri);
+            string cacheKey = GetTokenExchangeCacheKey(tokenResponse, requestUri);
             await SemaphoreSlim.WaitAsync();
             try
             {
@@ -191,18 +196,6 @@ namespace Altinn.ApiClients.Maskinporten.Services
                     TokenType = "altinn"
                 };
 
-                if (userName != null && password != null)
-                {
-                    requestMessage.Headers.TryAddWithoutValidation("X-Altinn-EnterpriseUser-Authentication",
-                        Convert.ToBase64String(Encoding.UTF8.GetBytes($"{userName}:{password}")));
-
-                    DebugLog("ExchangeToAltinnToken: Setting X-Altinn-EnterpriseUser-Authentication");
-                }
-                else
-                {
-                    DebugLog("ExchangeToAltinnToken: not setting X-Altinn-EnterpriseUser-Authentication, missing settings?");
-                }
-
                 DebugLog($"ExchangeToAltinnToken: Attempting token exchange at {requestMessage.RequestUri}");
 
                 exchangedTokenResponse.AccessToken = await PerformRequest<string>(requestMessage);
@@ -220,10 +213,18 @@ namespace Altinn.ApiClients.Maskinporten.Services
             }
         }
 
-        private string GetCacheKeyForTokenAndUsername(TokenResponse tokenResponse, string userName, Uri requestUri)
+        private string GetTokenExchangeCacheKey(TokenResponse tokenResponse, Uri requestUri)
         {
             MD5 md5 = MD5.Create();
-            return BitConverter.ToString(md5.ComputeHash(Encoding.UTF8.GetBytes($"{tokenResponse.AccessToken}|{userName}|{requestUri.AbsoluteUri}")));
+            return BitConverter.ToString(md5.ComputeHash(Encoding.UTF8.GetBytes($"{tokenResponse.AccessToken}|{requestUri.AbsoluteUri}")));
+        }
+
+        private void LogEnterpriseUserIgnoredWarning()
+        {
+            if (_enterpriseUserIgnoredWarningLogged) return;
+            _enterpriseUserIgnoredWarningLogged = true;
+            _logger.LogWarning("Enterprise user credentials are ignored, as enterprise user authentication relied on Altinn 2, which no longer exists. " +
+                               "Set ExhangeToAltinnToken to exchange the Maskinporten token into an Altinn token.");
         }
 
         private string GetJwtAssertion(X509Certificate2 cert, SecurityKey signingKey, string audience, string clientId, string scope, string resource, string consumerOrg, MaskinportenRequestContext requestContext)

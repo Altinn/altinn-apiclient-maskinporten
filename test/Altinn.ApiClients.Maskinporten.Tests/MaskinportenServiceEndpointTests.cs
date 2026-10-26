@@ -279,6 +279,51 @@ namespace Altinn.ApiClients.Maskinporten.Tests
         }
 
         [Fact]
+        public async Task GetToken_EnterpriseUserCredentialsWithoutTokenExchange_AreIgnored()
+        {
+            var handler = new RecordingHandler(MaskinportenTokenJson);
+            var settings = CreateSettings("test");
+#pragma warning disable CS0618 // Obsolete enterprise user settings
+            settings.EnterpriseUserName = "enterprise-user";
+            settings.EnterpriseUserPassword = "enterprise-password";
+#pragma warning restore CS0618
+
+            TokenResponse token = await CreateService(handler).GetToken(CreateClientDefinition(settings));
+
+            Assert.Equal("maskinporten-token", token.AccessToken);
+            Assert.Single(handler.Requests);
+        }
+
+        [Fact]
+        public async Task GetToken_EnterpriseUserCredentialsWithTokenExchange_DoNotAddEnterpriseUserHeader()
+        {
+            var handler = new RecordingHandler(MaskinportenTokenJson, "\"altinn-token\"");
+            var settings = CreateSettings("test");
+            settings.ExhangeToAltinnToken = true;
+#pragma warning disable CS0618 // Obsolete enterprise user settings
+            settings.EnterpriseUserName = "enterprise-user";
+            settings.EnterpriseUserPassword = "enterprise-password";
+#pragma warning restore CS0618
+
+            TokenResponse token = await CreateService(handler).GetToken(CreateClientDefinition(settings));
+
+            Assert.Equal("altinn-token", token.AccessToken);
+            Assert.False(handler.Requests[1].Headers.Contains("X-Altinn-EnterpriseUser-Authentication"));
+        }
+
+        [Fact]
+        public async Task ExchangeToAltinnToken_WithUserNameAndPassword_DoesNotAddEnterpriseUserHeader()
+        {
+            var handler = new RecordingHandler("\"altinn-token\"");
+            var maskinportenToken = new TokenResponse { AccessToken = "maskinporten-token", ExpiresIn = 120 };
+
+            TokenResponse token = await CreateService(handler).ExchangeToAltinnToken(maskinportenToken, "tt02", "enterprise-user", "enterprise-password");
+
+            Assert.Equal("altinn-token", token.AccessToken);
+            Assert.False(Assert.Single(handler.Requests).Headers.Contains("X-Altinn-EnterpriseUser-Authentication"));
+        }
+
+        [Fact]
         public void MaskinportenSettings_EndpointOverrides_CanBeBoundFromConfiguration()
         {
             IConfiguration configuration = new ConfigurationBuilder()

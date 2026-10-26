@@ -1,6 +1,6 @@
 # .NET client for Maskinporten APIs
 
-This .NET client library is used for calling maskinporten and create an access token to be used for services that require an Maskinporten access token. This also supports exchanging Maskinporten tokens into Altinn tokens, as well as enriching tokens with enterprise user credentials. 
+This .NET client library is used for calling maskinporten and create an access token to be used for services that require an Maskinporten access token. This also supports exchanging Maskinporten tokens into Altinn tokens. 
 
 ## Installation
 
@@ -318,15 +318,6 @@ The endpoint receiving the request must:
 * respond with a JSON object like `{"access_token": "...", "token_type": "Bearer", "expires_in": 120, "scope": "..."}`. `expires_in` must be a number, and tokens are cached until 5 seconds before they expire.
 
 The token exchange endpoint receives a `GET` with the Maskinporten token as a bearer token (and `?test=true` if `UseAltinnTestOrg` is set), and must respond with the exchanged token as a JSON string, ie. in quotes.
-
-## Authenticating with a enterprise user
-
-This library also supports enriching Maskinporten tokens with enterprise user credentials for APIs requiring user roles/rights. In order to do this, you will need to add the following fields to the configuration, containing the enterpriseuser's username and password.
-
-```json
-"EnterpriseUserName": "myenterpriseuser",
-"EnterpriseUserPassword": "mysecret",
-````
 
 ## Request-scoped system user token requests
 

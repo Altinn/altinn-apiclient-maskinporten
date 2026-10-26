@@ -35,6 +35,8 @@ namespace Altinn.ApiClients.Maskinporten.Interfaces
 
         /// <summary>
         /// Exchanges a Maskinporten access token to a Altinn token.
+        /// The userName and password parameters are obsolete and ignored, as enterprise user authentication relied on Altinn 2,
+        /// which no longer exists. They will be removed in the next major version.
         /// </summary>
         Task<TokenResponse> ExchangeToAltinnToken(TokenResponse tokenResponse, string environment, string userName = null, string password = null, bool disableCaching = false, bool isTestOrg = false);
     }
