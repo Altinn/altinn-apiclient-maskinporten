@@ -1,4 +1,5 @@
-﻿using Altinn.ApiClients.Maskinporten.Interfaces;
+﻿using System;
+using Altinn.ApiClients.Maskinporten.Interfaces;
 
 namespace Altinn.ApiClients.Maskinporten.Config
 {
@@ -61,17 +62,19 @@ namespace Altinn.ApiClients.Maskinporten.Config
         public string ConsumerOrgNo { get; set; }
 
         /// <summary>
-        /// Optional. Enterprise username for token enrichment
+        /// Obsolete. Ignored, as enterprise user authentication relied on Altinn 2, which no longer exists.
         /// </summary>
+        [Obsolete("Enterprise user authentication relied on Altinn 2, which no longer exists. This setting is ignored and will be removed in the next major version.")]
         public string EnterpriseUserName { get; set; }
 
         /// <summary>
-        /// Optional. Enterprise password for token enrichment
+        /// Obsolete. Ignored, as enterprise user authentication relied on Altinn 2, which no longer exists.
         /// </summary>
+        [Obsolete("Enterprise user authentication relied on Altinn 2, which no longer exists. This setting is ignored and will be removed in the next major version.")]
         public string EnterpriseUserPassword { get; set; }
 
         /// <summary>
-        /// Optional. Enables Altinn token exchange without enterprise user authentication. Ignored if EnterpriseUserName/Password is supplied (which implies token exchange).
+        /// Optional. Enables Altinn token exchange.
         /// </summary>
         public bool? ExhangeToAltinnToken { get; set; }
 
