@@ -40,6 +40,8 @@ jobs:
       run: |
         PROJECT=$(find . -name 'Altinn.ApiClients.Maskinporten.csproj' -printf "%p" -quit)
         echo "PROJECT=${PROJECT}" >> $GITHUB_ENV
+    - name: Test
+      run: dotnet test --configuration Release test/Altinn.ApiClients.Maskinporten.Tests/Altinn.ApiClients.Maskinporten.Tests.csproj
     - name: Build
       run: dotnet build --configuration Release /p:Version=${VERSION} ${PROJECT}
     - name: Pack with debug symbols
