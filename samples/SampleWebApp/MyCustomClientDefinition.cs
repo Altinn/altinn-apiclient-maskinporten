@@ -43,8 +43,8 @@ namespace SampleWebApp
                 throw new ApplicationException("Unable to fetch cert from key vault");
             }
 
-            var signingCertificate = new X509Certificate2(
-                (ReadOnlySpan<byte>)Convert.FromBase64String(base64Str),
+            var signingCertificate = X509CertificateLoader.LoadPkcs12(
+                Convert.FromBase64String(base64Str),
                 ClientSettings.CertificatePkcs12Password,
                 X509KeyStorageFlags.EphemeralKeySet);
 

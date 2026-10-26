@@ -23,10 +23,17 @@ namespace Altinn.ApiClients.Maskinporten.Services
             await File.WriteAllBytesAsync(file, Convert.FromBase64String(ClientSettings.EncodedX509));
             try
             {
+#if NET9_0_OR_GREATER
+                clientSecrets.ClientCertificate = X509CertificateLoader.LoadPkcs12FromFile(
+                    file,
+                    String.Empty,
+                    X509KeyStorageFlags.EphemeralKeySet);
+#else
                 clientSecrets.ClientCertificate = new X509Certificate2(
                     file,
                     String.Empty,
                     X509KeyStorageFlags.EphemeralKeySet);
+#endif
 
                 return clientSecrets;
             }
