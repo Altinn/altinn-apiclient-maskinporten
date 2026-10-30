@@ -237,7 +237,9 @@ namespace Altinn.ApiClients.Maskinporten.Services
                 { "aud", audience },
                 { "scope", scope },
                 { "iss", clientId },
-                { "exp", dateTimeOffset.ToUnixTimeSeconds() + 10 },
+                // Digdir recommends 120 seconds, and Maskinporten allows at most 180. A shorter lifetime lets the
+                // grant expire before a slow Maskinporten has processed it, which fails the request with MP-130.
+                { "exp", dateTimeOffset.ToUnixTimeSeconds() + 120 },
                 { "iat", dateTimeOffset.ToUnixTimeSeconds() },
                 { "jti", Guid.NewGuid().ToString() },
             };
