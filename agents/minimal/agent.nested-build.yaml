@@ -1,0 +1,16 @@
+# The nested variant with the image built from this checkout, so a change to ../Dockerfile can be tried before CI
+# publishes it.
+apiVersion: agents.platform/v1alpha1
+kind: AgentVariant
+extends: agent.nested.yaml
+
+metadata:
+  name: maskinporten-dev-nested-build
+
+spec:
+  sandbox:
+    image:
+      type: build
+      context: ..
+      dockerfile: Dockerfile
+      target: minimal

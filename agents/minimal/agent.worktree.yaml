@@ -1,0 +1,16 @@
+# Mounts this checkout into the agent instead of a fresh clone, so the agent works on your own branch. agentctl
+# refuses a checkout that holds a .env file, so keep this variant's environment file outside it.
+apiVersion: agents.platform/v1alpha1
+kind: AgentVariant
+extends: agent.yaml
+
+metadata:
+  name: maskinporten-dev-worktree
+
+spec:
+  sandbox:
+    mounts:
+      - type: bind
+        source: ../..
+        target: /home/agent/code/altinn-apiclient-maskinporten
+        readOnly: false
