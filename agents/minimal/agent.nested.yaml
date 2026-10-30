@@ -1,0 +1,19 @@
+# The same agent inside another one, such as to try a change to this definition. Sized to fit beside the outer
+# agent's own work.
+apiVersion: agents.platform/v1alpha1
+kind: AgentVariant
+extends: agent.yaml
+
+metadata:
+  name: maskinporten-dev-nested
+
+spec:
+  sandbox:
+    resources:
+      cpu: "2"
+      memory: "3Gi"
+      rootFilesystem:
+        capacity: "10Gi"
+        # A layered root filesystem wrote about 3x slower than a direct one in a nested agent on an arm64 host.
+        mode: direct
+      nestedSandboxes: null

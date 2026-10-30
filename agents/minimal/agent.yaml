@@ -1,0 +1,64 @@
+# The maskinporten-dev agent: develops the Altinn.ApiClients.Maskinporten library in a computer of its own with the
+# .NET SDK CI uses, builds, tests and packs it, runs SampleWebApp against Maskinporten's test environment, and opens
+# pull requests without the GitHub token ever entering it. ../README.md says how to set it up.
+apiVersion: agents.platform/v1alpha1
+kind: Agent
+metadata:
+  name: maskinporten-dev
+spec:
+  sandbox:
+    # The image .github/workflows/agents-images.yaml publishes from ../Dockerfile.
+    image:
+      type: reference
+      reference: ghcr.io/altinn/altinn-apiclient-maskinporten/agent-minimal:latest
+    platform:
+      os: linux
+    resources:
+      cpu: "4"
+      memory: "8Gi"
+      rootFilesystem:
+        # About 4 GB for the base image, the SDK, the NuGet cache and builds, and room to build this image and run
+        # it nested when the agent tries a change to its own definition.
+        capacity: "16Gi"
+        mode: layered
+      # Lets the agent try a change to its own definition in a nested agent. Hosts without nested KVM start it
+      # without.
+      nestedSandboxes: preferred
+    # Boots systemd, which clones the repository and serves Podman.
+    initSystem: image
+  # Copied over /home/agent on every reconcile, for configuration the team owns. Empty for now.
+  home:
+    source: ../home
+  instructions:
+    - source: ../instructions.md
+    - source: environment.md
+    - source: ../improving.md
+  skills:
+    - source: ../_skills/sample-run
+  harnesses:
+    - type: claudeCode
+      default: true
+    # The agent starts without Codex when the host has no Codex login. Run `agentctl codex login` and the next
+    # reconcile adds it.
+    - type: codex
+      optional: true
+  environment:
+    - name: GIT_USER_NAME
+    - name: GIT_USER_EMAIL
+  secrets:
+    - environment: GITHUB_TOKEN
+      # gh attaches files to pull requests only with a token it recognizes by its prefix.
+      placeholder: github_pat_AGENT_MEDIATED_GITHUB_TOKEN
+      allowedHosts:
+        - github.com
+        - api.github.com
+        - gist.github.com
+        - uploads.github.com
+  access:
+    - type: ssh
+  network:
+    mode: mediated
+    allow: all
+    # Google Cloud's metadata service hands out the credentials of the machine the host may run on.
+    deny:
+      - metadata.google.internal
