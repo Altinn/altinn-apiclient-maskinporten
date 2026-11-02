@@ -1,0 +1,7 @@
+# Variants of your own and environment files stay out of Git.
+agent.*.yaml
+.env
+
+# The variants this directory ships.
+!agent.build.yaml
+!agent.worktree.yaml
