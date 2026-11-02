@@ -8,12 +8,11 @@ works.
 [CI](../.github/workflows/ci-nuget.yml) does, runs SampleWebApp against Maskinporten's test environment, and opens
 pull requests. It has no browser or desktop, which the library does not need.
 
-| Variant        | Image and checkout                                                                  |
-| -------------- | ----------------------------------------------------------------------------------- |
-| default        | The published image and a fresh clone                                               |
-| `worktree`     | The published image with this checkout mounted read-write                           |
-| `nested`       | The published image, smaller, to run inside another agent                           |
-| `nested-build` | `nested` with the image built from this checkout, to try a change to the Dockerfile |
+| Variant    | Image and checkout                                                    |
+| ---------- | --------------------------------------------------------------------- |
+| default    | The published image and a fresh clone                                 |
+| `worktree` | The published image with this checkout mounted read-write             |
+| `build`    | The image built from this checkout, to try a change to the Dockerfile |
 
 [`.github/workflows/agents-images.yaml`](../.github/workflows/agents-images.yaml) builds the image from
 [`Dockerfile`](Dockerfile) on amd64 and arm64, runs [`smoke.sh`](smoke.sh) in it, and publishes

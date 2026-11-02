@@ -3,6 +3,5 @@ agent.*.yaml
 .env
 
 # The variants this directory ships.
-!agent.nested.yaml
-!agent.nested-build.yaml
+!agent.build.yaml
 !agent.worktree.yaml

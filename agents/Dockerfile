@@ -45,7 +45,7 @@ RUN case "${TARGETARCH}" in \
     && printf '%s\n' "${DOTNET_ROOT}" >/etc/dotnet/install_location \
     && rm -f /tmp/dotnet-install.sh
 
-# Podman, the `docker` command and Docker Compose, which the nested-build variant builds this image with.
+# Podman, the `docker` command and Docker Compose, which the build variant builds this image with.
 RUN agent-feature install containers
 
 # agentctl and agentd run nested agents, so the agent can try a change to its own definition before it proposes it.
