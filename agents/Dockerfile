@@ -50,7 +50,7 @@ RUN case "${TARGETARCH}" in \
 RUN agent-feature install containers
 
 # The base image's workspace unit clones the repositories this list names at boot.
-COPY common/workspace.list /etc/agent-workspace.d/maskinporten.list
+COPY --chmod=644 common/workspace.list /etc/agent-workspace.d/maskinporten.list
 
 # The version checks run with a scratch HOME, since the SDK writes caches there and a root-owned one would lock the
 # agent out of its own.
