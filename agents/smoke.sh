@@ -17,8 +17,6 @@ test "$(id -un)" = agent || fail "expected to run as agent, got $(id -un)"
 dotnet --list-sdks
 dotnet --list-sdks | grep -q '^10\.' || fail ".NET SDK 10 is missing"
 dotnet --list-runtimes | grep -q '^Microsoft.AspNetCore.App 10\.' || fail "the ASP.NET Core 10 runtime is missing"
-agentctl --version
-agentd --version
 podman --version
 grep -qxF Altinn/altinn-apiclient-maskinporten /etc/agent-workspace.d/maskinporten.list \
     || fail "the workspace list does not clone the repository"

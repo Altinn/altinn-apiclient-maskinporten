@@ -45,13 +45,9 @@ RUN case "${TARGETARCH}" in \
     && printf '%s\n' "${DOTNET_ROOT}" >/etc/dotnet/install_location \
     && rm -f /tmp/dotnet-install.sh
 
-# Podman, the `docker` command and Docker Compose, which the build variant builds this image with.
+# Podman, the `docker` command and Docker Compose, so the agent can build this image and try a change to it in a
+# container.
 RUN agent-feature install containers
-
-# agentctl and agentd run nested agents, so the agent can try a change to its own definition before it proposes it.
-# Renovate moves it to new agentctl releases.
-COPY --from=ghcr.io/digdir/agentctl:v0.1.0-preview.13@sha256:5451dd5e912865d7ed4544f0bf2e6d0912cd274b878515224cd05896a286b28f \
-    /agentctl /agentd /usr/local/bin/
 
 # The base image's workspace unit clones the repositories this list names at boot.
 COPY common/workspace.list /etc/agent-workspace.d/maskinporten.list
@@ -62,8 +58,6 @@ RUN scratch="$(mktemp -d)" \
     && HOME="${scratch}" TMPDIR="${scratch}" XDG_RUNTIME_DIR="${scratch}" sh -c ' \
         dotnet --list-sdks | grep -q "^${DOTNET_SDK_VERSION} " \
         && dotnet --info >/dev/null \
-        && agentctl --version \
-        && agentd --version \
         && podman --version' \
     && rm -rf "${scratch}" \
     && agent-image-check

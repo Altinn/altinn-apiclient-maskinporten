@@ -17,13 +17,10 @@ spec:
       cpu: "4"
       memory: "8Gi"
       rootFilesystem:
-        # About 4 GB for the base image, the SDK, the NuGet cache and builds, and room to build this image and run
-        # it nested when the agent tries a change to its own definition.
+        # About 4 GB for the base image, the SDK, the NuGet cache and builds, and room to build this image when the
+        # agent tries a change to its own definition.
         capacity: "16Gi"
         mode: layered
-      # Lets the agent try a change to its own definition in a nested agent. Hosts without nested KVM start it
-      # without.
-      nestedSandboxes: preferred
     # Boots systemd, which clones the repository and serves Podman.
     initSystem: image
   # Copied over /home/agent on every reconcile, for configuration the team owns. Empty for now.
