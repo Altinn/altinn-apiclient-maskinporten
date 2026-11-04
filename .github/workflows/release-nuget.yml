@@ -54,16 +54,22 @@ jobs:
   push-to-nuget:
     needs: build
     runs-on: ubuntu-latest
-    permissions: {}
+    permissions:
+      id-token: write # nuget.org trusted publishing exchanges the GitHub OIDC token for a short-lived API key
     steps:
     - name: Download artifact
       uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
       with:
         name: package
+    - name: Log in to nuget.org
+      id: nuget_login
+      uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
+      with:
+        user: ${{ vars.NUGET_USER }}
     - name: Push to nuget.org
       env:
-        NUGET_ORG_API_KEY: ${{secrets.NUGET_ORG_API_KEY}}
-      run: dotnet nuget push *.${{ needs.build.outputs.version }}.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_ORG_API_KEY }}
+        NUGET_API_KEY: ${{ steps.nuget_login.outputs.NUGET_API_KEY }}
+      run: dotnet nuget push *.${{ needs.build.outputs.version }}.nupkg --source https://api.nuget.org/v3/index.json --api-key "${NUGET_API_KEY}"
   push-to-github:
     needs: build
     runs-on: ubuntu-latest
