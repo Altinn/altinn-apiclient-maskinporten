@@ -56,7 +56,7 @@ jobs:
       # The containerd image store keeps the image the build step pushes, so the smoke test runs it without a second
       # copy on the runner's disk.
       - name: Set up Docker
-        uses: docker/setup-docker-action@e43656e248c0bd0647d3f5c195d116aacf6fcaf4 # v4.7.0
+        uses: docker/setup-docker-action@7ec28a010822b4626af4874f9448a4b05ac6f3e5 # v5.6.0
         with:
           daemon-config: |
             {
